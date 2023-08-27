@@ -8,7 +8,7 @@ authors = [ "Finn Behrens <me@kloenk.dev>" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = [ "pico" ]
-pico = ["cortex-m", "cortex-m-rt", "alloc-cortex-m", "embedded-hal", "uc8151" ]
+pico = ["cortex-m", "cortex-m-rt", "alloc-cortex-m", "embedded-hal" ]
 simulator = [ "embedded-graphics-simulator" ]
 
 
@@ -19,7 +19,7 @@ alloc-cortex-m = { version = "0.4", optional = true }
 embedded-hal = { version = "0.2.5", features = ["unproven"], optional = true }
 rp2040-hal = { version = "0.8.0", features = [ "disable-intrinsics" ] }
 
-defmt = "0.3"
+defmt = { version = "0.3", features = ["alloc"] }
 defmt-rtt = "0.4"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 
@@ -34,13 +34,18 @@ fugit = "0.3"
 
 # Display
 embedded-graphics = "0.8"
-uc8151 = { version = "0.2", features = [ "graphics" ], optional = true }
+uc8151 = { version = "0.2", features = [ "graphics" ] }
 embedded-graphics-simulator = { version = "0.5", optional = true }
 
 [[bin]]
 name = "sysbadge"
-path = "src/main.rs"
+path = "src/bin/pico.rs"
 required-features = [ "pico" ]
+
+[[bin]]
+name = "simulator"
+path = "src/bin/simulator.rs"
+required-features = [ "simulator" ]
 
 # cargo build/run
 [profile.dev]

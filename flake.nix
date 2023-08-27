@@ -51,7 +51,7 @@
           pkgs = nixpkgsFor.${system};
           shell = { lib, stdenv, mkShell, fenix, rust-analyzer-nightly, gdb
             , cargo-watch, cargo-edit, cargo-outdated, cargo-asm, libiconv
-            , flip-link, probe-run }:
+            , flip-link, probe-run, SDL2 }:
             mkShell {
               nativeBuildInputs = [
                 (fenixToolchain fenix)
@@ -62,6 +62,7 @@
                 cargo-asm
                 flip-link
                 probe-run
+                SDL2
               ] ++ lib.optional stdenv.isLinux gdb
                 ++ lib.optional stdenv.isDarwin libiconv;
               inherit (self.checks.${system}.pre-commit) shellHook;

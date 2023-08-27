@@ -31,6 +31,7 @@ use embedded_graphics::prelude::*;
 use embedded_graphics::text::{Alignment, Text};
 use embedded_hal::digital::v2::OutputPin;
 use fugit::{HertzU32, RateExtU32};
+use sysbadge::Sysbadge;
 
 #[entry]
 fn main() -> ! {
@@ -90,16 +91,15 @@ fn main() -> ! {
     display
         .setup(&mut delay, uc8151::LUT::Fast)
         .expect("setting up display");
+    display.enable();
+    display.update().expect("Failed to update");
 
-    Text::with_alignment(
-        "foo",
-        display.bounding_box().center() + Point::new(0, 15),
-        MonoTextStyle::new(&FONT_6X10, BinaryColor::Off),
-        Alignment::Center,
-    )
-    .draw(&mut display);
+    let mut sysbadge = Sysbadge::new(display);
 
-    display.update().expect("updating display");
+    sysbadge.draw().expect("failed to draw display");
+
+    info!("updating display");
+    sysbadge.display.update().expect("failed to update");
 
     loop {}
     defmt::todo!()
