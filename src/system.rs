@@ -111,22 +111,30 @@ use embedded_graphics::primitives::{PrimitiveStyle, Rectangle, StyledDrawable};
 use embedded_graphics::text::{Alignment, Text};
 use embedded_graphics::Drawable;
 
-pub(crate) struct DrawableMember<'a> {
+pub(crate) struct DrawableMember<'a, C>
+where
+    C: PixelColor + From<BinaryColor>,
+{
     member: &'a Member,
     bounds: Rectangle,
     select: super::Select,
+    _color: core::marker::PhantomData<C>,
 }
 
-impl<'a> DrawableMember<'a> {
+impl<'a, C> DrawableMember<'a, C>
+where
+    C: PixelColor + From<BinaryColor>,
+{
     pub fn new(member: &'a Member, bounds: Rectangle, select: super::Select) -> Self {
         Self {
             member,
             bounds,
             select,
+            _color: core::marker::PhantomData,
         }
     }
 
-    fn pronoun<D: DrawTarget<Color = <Self as Drawable>::Color>>(
+    /*fn pronoun<D: DrawTarget<Color = <Self as Drawable>::Color>>(
         &self,
         target: &mut D,
     ) -> DrawResult<D> {
@@ -183,23 +191,29 @@ impl<'a> DrawableMember<'a> {
         .draw(target)?;
 
         Ok(())
-    }
+    }*/
 }
 
-impl<'a> Drawable for DrawableMember<'a> {
-    type Color = embedded_graphics::pixelcolor::BinaryColor;
+impl<'a, C> Drawable for DrawableMember<'a, C>
+where
+    C: PixelColor + From<BinaryColor>,
+{
+    type Color = C;
     type Output = Rectangle;
 
     fn draw<D>(&self, target: &mut D) -> Result<Self::Output, D::Error>
     where
-        D: DrawTarget<Color = Self::Color>,
+        D: DrawTarget,
+        <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
     {
         let bound_style =
-            PrimitiveStyle::with_stroke(super::BINARY_COLOR_ON, self.select.stroke_with());
+            PrimitiveStyle::with_stroke(super::BINARY_COLOR_ON.into(), self.select.stroke_with());
         self.bounds.draw_styled(&bound_style, target)?;
 
-        self.name(target)?;
-        self.pronoun(target)?;
+        /*self.name(target)?;
+        if !self.member.pronouns().is_empty() {
+            self.pronoun(target)?;
+        }*/
 
         Ok(self.bounds)
     }

@@ -16,6 +16,9 @@ pub mod system;
 
 pub type DrawResult<D, T = ()> = Result<T, <D as DrawTarget>::Error>;
 
+pub const HEIGHT: u32 = uc8151::HEIGHT;
+pub const WIDTH: u32 = uc8151::WIDTH;
+
 #[cfg(not(feature = "invert"))]
 const BINARY_COLOR_OFF: BinaryColor = BinaryColor::Off;
 
@@ -27,31 +30,6 @@ const BINARY_COLOR_ON: BinaryColor = BinaryColor::On;
 
 #[cfg(feature = "invert")]
 const BINARY_COLOR_ON: BinaryColor = BinaryColor::Off;
-
-/*
-#[cfg(feature = "simulator")]
-pub type Display = embedded_graphics_simulator::SimulatorDisplay<BinaryColor>;
-
-#[cfg(feature = "pico")]
-pub type Display = uc8151::Uc8151<
-    rp2040_hal::spi::Spi<rp2040_hal::spi::Enabled, rp2040_hal::pac::SPI0, 8>,
-    rp2040_hal::gpio::Pin<
-        rp2040_hal::gpio::bank0::Gpio17,
-        rp2040_hal::gpio::Output<rp2040_hal::gpio::PushPull>,
-    >,
-    rp2040_hal::gpio::Pin<
-        rp2040_hal::gpio::bank0::Gpio20,
-        rp2040_hal::gpio::Output<rp2040_hal::gpio::PushPull>,
-    >,
-    rp2040_hal::gpio::Pin<
-        rp2040_hal::gpio::bank0::Gpio26,
-        rp2040_hal::gpio::Input<rp2040_hal::gpio::PullUp>,
-    >,
-    rp2040_hal::gpio::Pin<
-        rp2040_hal::gpio::bank0::Gpio21,
-        rp2040_hal::gpio::Output<rp2040_hal::gpio::PushPull>,
-    >,
->;*/
 
 fn inc_wrapping<T>(cur: T, max: T) -> T
 where
@@ -190,11 +168,11 @@ impl CurrentMembers {
         }
     }
 
-    fn draw<D: DrawTarget<Color = BinaryColor>>(
-        &self,
-        system: &SystemUf2,
-        target: &mut D,
-    ) -> DrawResult<D> {
+    fn draw<D>(&self, system: &SystemUf2, target: &mut D) -> DrawResult<D>
+    where
+        D: DrawTarget,
+        <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
+    {
         debug_assert!(self.len != 0 && self.len <= 4);
 
         match self.len {
@@ -259,13 +237,17 @@ impl CurrentMembers {
         Ok(())
     }
 
-    fn draw_two<D: DrawTarget<Color = BinaryColor>>(
+    fn draw_two<D>(
         &self,
         idx: (u8, u8),
         system: &SystemUf2,
         bounds: Rectangle,
         target: &mut D,
-    ) -> DrawResult<D> {
+    ) -> DrawResult<D>
+    where
+        D: DrawTarget,
+        <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
+    {
         DrawableMember::new(
             &system.members()[self.members[idx.0 as usize].id as usize],
             bounds.resized_height(bounds.size.height / 2, AnchorY::Top),
@@ -310,13 +292,21 @@ impl CurrentMenu {
     }
 }
 
-pub struct Sysbadge<'a, D: DrawTarget<Color = BinaryColor>> {
+pub struct Sysbadge<'a, D>
+where
+    D: DrawTarget,
+    <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
+{
     pub display: D,
     system: &'a SystemUf2,
     current: CurrentMenu,
 }
 
-impl<D: DrawTarget<Color = BinaryColor>> Sysbadge<'static, D> {
+impl<D> Sysbadge<'static, D>
+where
+    D: DrawTarget,
+    <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
+{
     pub fn new(display: D) -> Self {
         let system = unsafe { &*Self::system_start() };
         Self::new_with_system(display, system)
@@ -332,7 +322,11 @@ impl<D: DrawTarget<Color = BinaryColor>> Sysbadge<'static, D> {
     }
 }
 
-impl<'a, D: DrawTarget<Color = BinaryColor>> Sysbadge<'a, D> {
+impl<'a, D> Sysbadge<'a, D>
+where
+    D: DrawTarget,
+    <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
+{
     pub fn new_with_system(display: D, system: &'a SystemUf2) -> Self {
         Self {
             display,
@@ -350,7 +344,7 @@ impl<'a, D: DrawTarget<Color = BinaryColor>> Sysbadge<'a, D> {
     }
 
     pub fn draw(&mut self) -> DrawResult<D> {
-        self.display.clear(BINARY_COLOR_OFF)?;
+        self.display.clear(BINARY_COLOR_OFF.into())?;
         match self.current {
             CurrentMenu::SystemName => self.draw_system_name(),
             CurrentMenu::Version => self.draw_version(),
@@ -364,7 +358,7 @@ impl<'a, D: DrawTarget<Color = BinaryColor>> Sysbadge<'a, D> {
             self.display.bounding_box().center(),
             MonoTextStyle::new(
                 &embedded_graphics::mono_font::ascii::FONT_10X20,
-                BINARY_COLOR_ON,
+                BINARY_COLOR_ON.into(),
             ),
             Alignment::Center,
         )
@@ -376,7 +370,7 @@ impl<'a, D: DrawTarget<Color = BinaryColor>> Sysbadge<'a, D> {
     fn draw_version(&mut self) -> DrawResult<D> {
         let text_style = MonoTextStyle::new(
             &embedded_graphics::mono_font::ascii::FONT_10X20,
-            BINARY_COLOR_ON,
+            BINARY_COLOR_ON.into(),
         );
 
         Text::with_alignment(
@@ -397,7 +391,7 @@ impl<'a, D: DrawTarget<Color = BinaryColor>> Sysbadge<'a, D> {
 
         let text_style = MonoTextStyle::new(
             &embedded_graphics::mono_font::ascii::FONT_9X18,
-            BINARY_COLOR_ON,
+            BINARY_COLOR_ON.into(),
         );
         Text::with_alignment(
             concat!(

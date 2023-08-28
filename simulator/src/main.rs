@@ -12,7 +12,7 @@ use sysbadge::{Button, Sysbadge};
 
 fn main() -> Result<(), core::convert::Infallible> {
     let mut display =
-        SimulatorDisplay::<BinaryColor>::new(Size::new(uc8151::WIDTH, uc8151::HEIGHT));
+        SimulatorDisplay::<BinaryColor>::new(Size::new(sysbadge::WIDTH, sysbadge::HEIGHT));
 
     let output_settings = OutputSettingsBuilder::new()
         .theme(BinaryColorTheme::OledBlue)
