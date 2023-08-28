@@ -129,7 +129,7 @@ impl<'a> DrawableMember<'a> {
     fn pronoun<D: DrawTarget<Color = <Self as Drawable>::Color>>(
         &self,
         target: &mut D,
-    ) -> DrawResult<(), D> {
+    ) -> DrawResult<D> {
         let (pos, align, font) = match self.bounds.size.height {
             x if x > 100 => (
                 Point::new(5, (self.bounds.size.height - 15) as i32),
@@ -162,7 +162,7 @@ impl<'a> DrawableMember<'a> {
     fn name<D: DrawTarget<Color = <Self as Drawable>::Color>>(
         &self,
         target: &mut D,
-    ) -> DrawResult<(), D> {
+    ) -> DrawResult<D> {
         let (pos, font) = match self.bounds.size.height {
             x if x > 40 => (
                 Point::new(5, 15),

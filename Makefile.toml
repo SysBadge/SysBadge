@@ -1,0 +1,10 @@
+
+[tasks.fw]
+command = "cargo"
+args = [
+    "build",
+    "--package",
+    "sysbadge-fw",
+    "-Z", "build-std=compiler_builtins,core,alloc",
+    "--target", "thumbv6m-none-eabi",
+]

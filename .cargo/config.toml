@@ -29,10 +29,7 @@ rustflags = [
 ]
 
 [unstable]
-build-std = [ "compiler_builtins", "core", "alloc", "std" ]
-
-[build]
-target = "thumbv6m-none-eabi"
+#build-std = [ "compiler_builtins", "core", "alloc", "std" ]
 
 [env]
 DEFMT_LOG = "debug"

@@ -830,19 +830,38 @@ dependencies = [
 name = "sysbadge"
 version = "0.1.0"
 dependencies = [
+ "defmt",
+ "embedded-graphics",
+ "fugit",
+ "nb 1.1.0",
+]
+
+[[package]]
+name = "sysbadge-fw"
+version = "0.1.0"
+dependencies = [
  "alloc-cortex-m",
  "cortex-m",
  "cortex-m-rt",
  "defmt",
  "defmt-rtt",
- "embedded-graphics",
- "embedded-graphics-simulator",
  "embedded-hal",
  "fugit",
- "nb 1.1.0",
  "panic-probe",
  "pimoroni_badger2040",
  "rp2040-hal",
+ "sysbadge",
+ "uc8151",
+]
+
+[[package]]
+name = "sysbadge-simulator"
+version = "0.1.0"
+dependencies = [
+ "defmt",
+ "embedded-graphics",
+ "embedded-graphics-simulator",
+ "sysbadge",
  "uc8151",
 ]
 

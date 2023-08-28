@@ -11,27 +11,24 @@ use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::text::{Alignment, Text};
-use embedded_graphics_simulator::BinaryColorTheme::Default;
 
 pub mod system;
 
-#[cfg(all(feature = "pico", feature = "simulator"))]
-compile_error!("Cannot both select hardware and simulator");
+pub type DrawResult<D, T = ()> = Result<T, <D as DrawTarget>::Error>;
 
-pub type DrawResult<T = (), D = Display> = Result<T, <D as DrawTarget>::Error>;
-
-#[cfg(feature = "pico")]
-const BINARY_COLOR_ON: BinaryColor = BinaryColor::Off;
-
-#[cfg(feature = "simulator")]
-const BINARY_COLOR_ON: BinaryColor = BinaryColor::On;
-
-#[cfg(feature = "simulator")]
+#[cfg(not(feature = "invert"))]
 const BINARY_COLOR_OFF: BinaryColor = BinaryColor::Off;
 
-#[cfg(feature = "pico")]
+#[cfg(feature = "invert")]
 const BINARY_COLOR_OFF: BinaryColor = BinaryColor::On;
 
+#[cfg(not(feature = "invert"))]
+const BINARY_COLOR_ON: BinaryColor = BinaryColor::On;
+
+#[cfg(feature = "invert")]
+const BINARY_COLOR_ON: BinaryColor = BinaryColor::Off;
+
+/*
 #[cfg(feature = "simulator")]
 pub type Display = embedded_graphics_simulator::SimulatorDisplay<BinaryColor>;
 
@@ -54,7 +51,7 @@ pub type Display = uc8151::Uc8151<
         rp2040_hal::gpio::bank0::Gpio21,
         rp2040_hal::gpio::Output<rp2040_hal::gpio::PushPull>,
     >,
->;
+>;*/
 
 fn inc_wrapping<T>(cur: T, max: T) -> T
 where
@@ -197,7 +194,7 @@ impl CurrentMembers {
         &self,
         system: &SystemUf2,
         target: &mut D,
-    ) -> DrawResult<(), D> {
+    ) -> DrawResult<D> {
         debug_assert!(self.len != 0 && self.len <= 4);
 
         match self.len {
@@ -268,7 +265,7 @@ impl CurrentMembers {
         system: &SystemUf2,
         bounds: Rectangle,
         target: &mut D,
-    ) -> DrawResult<(), D> {
+    ) -> DrawResult<D> {
         DrawableMember::new(
             &system.members()[self.members[idx.0 as usize].id as usize],
             bounds.resized_height(bounds.size.height / 2, AnchorY::Top),
@@ -313,14 +310,14 @@ impl CurrentMenu {
     }
 }
 
-pub struct Sysbadge<'a> {
-    pub display: Display,
+pub struct Sysbadge<'a, D: DrawTarget<Color = BinaryColor>> {
+    pub display: D,
     system: &'a SystemUf2,
     current: CurrentMenu,
 }
 
-impl Sysbadge<'static> {
-    pub fn new(display: Display) -> Self {
+impl<D: DrawTarget<Color = BinaryColor>> Sysbadge<'static, D> {
+    pub fn new(display: D) -> Self {
         let system = unsafe { &*Self::system_start() };
         Self::new_with_system(display, system)
     }
@@ -335,8 +332,8 @@ impl Sysbadge<'static> {
     }
 }
 
-impl<'a> Sysbadge<'a> {
-    pub fn new_with_system(display: Display, system: &'a SystemUf2) -> Self {
+impl<'a, D: DrawTarget<Color = BinaryColor>> Sysbadge<'a, D> {
+    pub fn new_with_system(display: D, system: &'a SystemUf2) -> Self {
         Self {
             display,
             system,
@@ -352,7 +349,7 @@ impl<'a> Sysbadge<'a> {
         );
     }
 
-    pub fn draw(&mut self) -> DrawResult {
+    pub fn draw(&mut self) -> DrawResult<D> {
         self.display.clear(BINARY_COLOR_OFF)?;
         match self.current {
             CurrentMenu::SystemName => self.draw_system_name(),
@@ -361,7 +358,7 @@ impl<'a> Sysbadge<'a> {
         }
     }
 
-    fn draw_system_name(&mut self) -> DrawResult {
+    fn draw_system_name(&mut self) -> DrawResult<D> {
         Text::with_alignment(
             self.system.name(),
             self.display.bounding_box().center(),
@@ -376,7 +373,7 @@ impl<'a> Sysbadge<'a> {
         Ok(())
     }
 
-    fn draw_version(&mut self) -> DrawResult {
+    fn draw_version(&mut self) -> DrawResult<D> {
         let text_style = MonoTextStyle::new(
             &embedded_graphics::mono_font::ascii::FONT_10X20,
             BINARY_COLOR_ON,

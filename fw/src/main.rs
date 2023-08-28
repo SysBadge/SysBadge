@@ -19,16 +19,11 @@ static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
 // Ensure we halt the program on panic (if we don't mention this crate it won't
 // be linked)
 use defmt_rtt as _;
-use embedded_graphics::mono_font::iso_8859_3::FONT_6X10;
-use embedded_graphics::mono_font::MonoTextStyle;
-use embedded_graphics::pixelcolor::BinaryColor;
 use panic_probe as _;
 
 use uc8151::Uc8151;
 
 // GPIO traits
-use embedded_graphics::prelude::*;
-use embedded_graphics::text::{Alignment, Text};
 use embedded_hal::digital::v2::OutputPin;
 use fugit::{HertzU32, RateExtU32};
 use sysbadge::Sysbadge;

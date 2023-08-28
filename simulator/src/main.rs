@@ -1,4 +1,3 @@
-#[path = "simulator/defmt_stderr.rs"]
 mod defmt_stderr;
 
 use embedded_graphics::pixelcolor::BinaryColor;
