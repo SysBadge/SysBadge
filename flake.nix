@@ -151,7 +151,23 @@
                 "-Z build-std=compiler_builtins,core,alloc --target thumbv6m-none-eabi --package sysbadge-fw";
             })) { };
         };
-      overlays.default = self.overlays.sysbadge_fw;
+      overlays.sysbadge_web = final: prev: {
+        sysbadge_images = final.callPackage
+          ({ runCommandNoCC, sysbadge_simulator }:
+            runCommandNoCC "sysbadge-images" {
+              buildInputs = [ sysbadge_simulator ];
+            } ''
+              mkdir -p $out/share/sysbadge
+
+              EG_SIMULATOR_DUMP=$out/share/sysbadge/home.png sysbadge-simulator
+              EG_SIMULATOR_DUMP=$out/share/sysbadge/version.png sysbadge-simulator B
+
+              EG_SIMULATOR_DUMP=$out/share/sysbadge/one.png sysbadge-simulator C
+            '') { };
+      };
+      overlays.default = final: prev:
+        (self.overlays.sysbadge_fw final prev)
+        // (self.overlays.sysbadge_web final prev);
 
       legacyPackages = nixpkgsFor;
 

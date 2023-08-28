@@ -8,7 +8,7 @@ use embedded_graphics_simulator::{
     Window,
 };
 use sysbadge::system::{Member, SystemUf2};
-use sysbadge::Button;
+use sysbadge::{Button, Sysbadge};
 
 fn main() -> Result<(), core::convert::Infallible> {
     let mut display =
@@ -24,8 +24,23 @@ fn main() -> Result<(), core::convert::Infallible> {
 
     sysbadge.draw().unwrap();
 
-    let mut window = Window::new("Sysbadge Simulator", &output_settings);
+    let window = Window::new("Sysbadge Simulator", &output_settings);
 
+    let args: Vec<Button> = std::env::args()
+        .skip(1)
+        .map(|s| convert_to_button(&s))
+        .collect();
+
+    if args.is_empty() {
+        run_loop(window, sysbadge);
+    } else {
+        run_buttons(window, sysbadge, args);
+    }
+
+    Ok(())
+}
+
+fn run_loop(mut window: Window, mut sysbadge: Sysbadge<SimulatorDisplay<BinaryColor>>) {
     'running: loop {
         sysbadge.draw().expect("Failed to redraw screen");
         window.update(&sysbadge.display);
@@ -65,8 +80,40 @@ fn main() -> Result<(), core::convert::Infallible> {
             }
         }
     }
+}
 
-    Ok(())
+fn run_buttons(
+    mut window: Window,
+    mut sysbadge: Sysbadge<SimulatorDisplay<BinaryColor>>,
+    buttons: Vec<Button>,
+) {
+    for button in buttons {
+        sysbadge.press(button);
+    }
+
+    sysbadge.draw().expect("Failed to redraw screen");
+    window.update(&sysbadge.display);
+
+    'running: loop {
+        for event in window.events() {
+            match event {
+                SimulatorEvent::Quit => break 'running,
+                _ => {}
+            }
+        }
+    }
+}
+
+fn convert_to_button(str: &str) -> Button {
+    match str.to_lowercase().as_str() {
+        "a" => Button::A,
+        "b" => Button::B,
+        "c" => Button::C,
+        "up" => Button::Up,
+        "down" => Button::Down,
+        "user" => Button::USER,
+        _ => panic!("Unknown button {}", str),
+    }
 }
 
 fn create_system() -> SystemUf2 {
