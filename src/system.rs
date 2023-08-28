@@ -1,3 +1,4 @@
+use alloc::format;
 use core::ffi::CStr;
 use core::mem::MaybeUninit;
 
@@ -94,5 +95,112 @@ impl SystemUf2 {
     pub fn members(&self) -> &[Member] {
         // SAFETY: held by type invariant
         unsafe { core::slice::from_raw_parts(self.members, self.num_members as usize) }
+    }
+
+    pub fn len(&self) -> usize {
+        self.num_members as usize
+    }
+}
+
+use crate::DrawResult;
+use embedded_graphics::draw_target::DrawTarget;
+use embedded_graphics::mono_font::MonoTextStyle;
+use embedded_graphics::pixelcolor::BinaryColor;
+use embedded_graphics::prelude::*;
+use embedded_graphics::primitives::{PrimitiveStyle, Rectangle, StyledDrawable};
+use embedded_graphics::text::{Alignment, Text};
+use embedded_graphics::Drawable;
+
+pub(crate) struct DrawableMember<'a> {
+    member: &'a Member,
+    bounds: Rectangle,
+    select: super::Select,
+}
+
+impl<'a> DrawableMember<'a> {
+    pub fn new(member: &'a Member, bounds: Rectangle, select: super::Select) -> Self {
+        Self {
+            member,
+            bounds,
+            select,
+        }
+    }
+
+    fn pronoun<D: DrawTarget<Color = <Self as Drawable>::Color>>(
+        &self,
+        target: &mut D,
+    ) -> DrawResult<(), D> {
+        let (pos, align, font) = match self.bounds.size.height {
+            x if x > 100 => (
+                Point::new(5, (self.bounds.size.height - 15) as i32),
+                Alignment::Left,
+                &embedded_graphics::mono_font::ascii::FONT_10X20,
+            ),
+            x if x > 40 => (
+                Point::new(5, 30),
+                Alignment::Left,
+                &embedded_graphics::mono_font::ascii::FONT_8X13,
+            ),
+            _ => (
+                Point::new((self.bounds.size.width - 5) as i32, 15),
+                Alignment::Right,
+                &embedded_graphics::mono_font::ascii::FONT_6X10,
+            ),
+        };
+
+        Text::with_alignment(
+            &format!("({})", self.member.pronouns()),
+            self.bounds.top_left + pos,
+            MonoTextStyle::new(font, super::BINARY_COLOR_ON),
+            align,
+        )
+        .draw(target)?;
+
+        Ok(())
+    }
+
+    fn name<D: DrawTarget<Color = <Self as Drawable>::Color>>(
+        &self,
+        target: &mut D,
+    ) -> DrawResult<(), D> {
+        let (pos, font) = match self.bounds.size.height {
+            x if x > 40 => (
+                Point::new(5, 15),
+                &embedded_graphics::mono_font::ascii::FONT_10X20,
+            ),
+            _ => (
+                Point::new(5, 15),
+                &embedded_graphics::mono_font::ascii::FONT_6X10,
+            ),
+        };
+
+        Text::with_alignment(
+            self.member.name(),
+            self.bounds.top_left + pos,
+            MonoTextStyle::new(font, super::BINARY_COLOR_ON),
+            Alignment::Left,
+        )
+        .draw(target)?;
+
+        Ok(())
+    }
+}
+
+impl<'a> Drawable for DrawableMember<'a> {
+    type Color = embedded_graphics::pixelcolor::BinaryColor;
+    type Output = Rectangle;
+
+    fn draw<D>(&self, target: &mut D) -> Result<Self::Output, D::Error>
+    where
+        D: DrawTarget<Color = Self::Color>,
+    {
+        let bound_style =
+            PrimitiveStyle::with_stroke(super::BINARY_COLOR_ON, self.select.stroke_with());
+        self.bounds.draw_styled(&bound_style, target)?;
+
+        self.name(target)?;
+        self.pronoun(target)?;
+
+        Ok(self.bounds)
     }
 }

@@ -8,7 +8,7 @@ authors = [ "Finn Behrens <me@kloenk.dev>" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = [ "pico" ]
-pico = ["cortex-m", "cortex-m-rt", "alloc-cortex-m", "embedded-hal" ]
+pico = ["cortex-m", "cortex-m-rt", "alloc-cortex-m", "embedded-hal", "defmt-rtt", "rp2040-hal", "pimoroni_badger2040" ]
 simulator = [ "embedded-graphics-simulator" ]
 
 
@@ -17,17 +17,17 @@ cortex-m = { version = "0.7", optional = true }
 cortex-m-rt = { version = "0.7", optional = true }
 alloc-cortex-m = { version = "0.4", optional = true }
 embedded-hal = { version = "0.2.5", features = ["unproven"], optional = true }
-rp2040-hal = { version = "0.8.0", features = [ "disable-intrinsics" ] }
+rp2040-hal = { version = "0.8.0", features = [ "disable-intrinsics" ], optional = true }
 
 defmt = { version = "0.3", features = ["alloc"] }
-defmt-rtt = "0.4"
+defmt-rtt = { version = "0.4", optional = true }
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 
 # We're using a Pico by default on this template
 # rp-pico = "0.7"
 
 # Board support
-pimoroni_badger2040 = "0.4"
+pimoroni_badger2040 = { version = "0.4", optional = true }
 
 nb = "1.1"
 fugit = "0.3"

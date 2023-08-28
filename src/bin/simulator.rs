@@ -36,9 +36,29 @@ fn main() -> Result<(), core::convert::Infallible> {
                 SimulatorEvent::Quit => break 'running,
                 SimulatorEvent::KeyDown { keycode, .. } => match keycode {
                     Keycode::Q => break 'running,
-                    Keycode::B => {
+                    Keycode::Y => {
+                        println!("register user press");
+                        sysbadge.press(Button::USER)
+                    }
+                    Keycode::X => {
+                        println!("register a press");
+                        sysbadge.press(Button::A)
+                    }
+                    Keycode::C => {
                         println!("register b press");
                         sysbadge.press(Button::B)
+                    }
+                    Keycode::V => {
+                        println!("register c press");
+                        sysbadge.press(Button::C)
+                    }
+                    Keycode::Up | Keycode::B => {
+                        println!("register up press");
+                        sysbadge.press(Button::Up)
+                    }
+                    Keycode::Down | Keycode::N => {
+                        println!("register down press");
+                        sysbadge.press(Button::Down)
                     }
                     _ => {}
                 },
