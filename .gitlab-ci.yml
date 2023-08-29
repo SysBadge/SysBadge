@@ -1,0 +1,52 @@
+stages:
+  - build
+  - release
+
+nix_web:
+  stage: build
+  needs: []
+  tags:
+    - nix
+  only:
+    - merge_requests
+    - tags
+  script:
+    - nix build --extra-experimental-features "nix-command flakes" -L .#sysbadge_web
+
+nix_fw:
+  stage: build
+  needs: []
+  tags:
+    - nix
+  only:
+    - merge_requests
+    - tags
+  script:
+    - nix build --extra-experimental-features "nix-command flakes" -L .#sysbadge_fw
+    - cp result/bin/* .
+  artifacts:
+    paths:
+      - sysbadge-fw
+      #- sysbadge.uf2
+      #- sysbadge.bin
+
+#release:
+#  stage: release
+#  variables:
+#    GIT_STRATEGY: none
+#  script: |
+#    nix build --extra-experimental-features "nix-command flakes" nixpkgs#curl
+#    echo "Uploading artifacts as generic packages"
+#    export PACKAGE_NAME="firmware"
+#    export PACKAGE_VERSION="$CI_COMMIT_REF_NAME"
+#    export PACKAGE_FILES="sysbadge.bin sysbadge.uf2 sysbadge.elf"
+#    for file in $PACKAGE_FILES; do
+#      echo uploading $file;
+#      ./result-bin/bin/curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $file "https://cyberchaos.dev/api/v4/projects/$CI_PROJECT_ID/packages/generic/$PACKAGE_NAME/$PACKAGE_VERSION/$file" --http1.1
+#    done
+#  dependencies:
+#    - nix_fw
+#  tags:
+#    - nix
+#  only:
+#    - tags
