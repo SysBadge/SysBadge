@@ -309,7 +309,7 @@ where
     <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
 {
     pub display: D,
-    system: &'a SystemUf2,
+    pub system: &'a SystemUf2,
     current: CurrentMenu,
 }
 
