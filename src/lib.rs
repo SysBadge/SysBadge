@@ -428,4 +428,9 @@ where
 
         Ok(())
     }
+
+    #[cfg(feature = "simulator")]
+    pub fn reset(&mut self) {
+        self.current = CurrentMenu::SystemName;
+    }
 }

@@ -12,8 +12,8 @@ crate-type = ["cdylib"]
 
 [features]
 default = [ "badge", "update" ]
-update = [ "reqwest", "pkrs", "wasm-bindgen-futures", "wasm-bindgen/serde-serialize" ]
-badge = [ "embedded-graphics", "embedded-graphics-web-simulator" ]
+update = [ "reqwest", "pkrs", "wasm-bindgen-futures", "uf2", "wasm-bindgen/serde-serialize", "web-sys/HtmlInputElement", "web-sys/HtmlButtonElement", "web-sys/Blob", "web-sys/Url", "web-sys/BlobPropertyBag" ]
+badge = [ "embedded-graphics", "embedded-graphics-web-simulator", "web-sys/HtmlCanvasElement", "web-sys/CanvasRenderingContext2d" ]
 
 [dependencies]
 sysbadge = { path = "..", features = [ "simulator", "wasm" ] }
@@ -28,16 +28,16 @@ embedded-graphics = { version = "0.8", optional = true }
 # Update
 reqwest = { version = "0.11", optional = true }
 pkrs = { version = "0.3.1", optional = true }
+uf2 = { version = "0.1.0", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
+js-sys = "0.3"
 
 [dependencies.web-sys]
 version = "0.3"
 features = [
     "console",
-    "CanvasRenderingContext2d",
     "Document",
     "Element",
-    "HtmlCanvasElement",
     "Window"
 ]
 

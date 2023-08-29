@@ -26,7 +26,7 @@ pub fn main_js() -> Result<(), JsValue> {
     badge::register(&document)?;
 
     #[cfg(feature = "update")]
-    update::register()?;
+    update::register(&document)?;
 
     Ok(())
 }

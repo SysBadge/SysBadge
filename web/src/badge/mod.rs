@@ -4,8 +4,8 @@ use sysbadge::system::{Member, SystemUf2};
 use sysbadge::Sysbadge;
 use wasm_bindgen::prelude::*;
 use web_sys::{console, Document};
-static mut SYSTEM: SystemUf2 = SystemUf2::ZERO;
-static mut SYSBADGE: Option<Sysbadge<WebSimulatorDisplay<BinaryColor>>> = None;
+pub(crate) static mut SYSTEM: SystemUf2 = SystemUf2::ZERO;
+pub(crate) static mut SYSBADGE: Option<Sysbadge<WebSimulatorDisplay<BinaryColor>>> = None;
 
 pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
     if let Some(app) = document.get_element_by_id("sysbadge-badge") {
@@ -44,6 +44,23 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
             sysbadge::Button::Down,
         );
 
+        {
+            let closure = Closure::wrap(Box::new(move || unsafe {
+                let badge = SYSBADGE.as_mut().unwrap();
+                badge.reset();
+                badge.draw().unwrap();
+                badge.display.flush().unwrap();
+            }) as Box<dyn FnMut()>);
+
+            document
+                .get_element_by_id("_sysbadge-badge-button-reset")
+                .unwrap()
+                .add_event_listener_with_callback("click", closure.as_ref().unchecked_ref())
+                .unwrap();
+
+            closure.forget();
+        }
+
         unsafe {
             SYSBADGE = Some(sysbadge);
         }
@@ -81,5 +98,8 @@ fn create_system() -> SystemUf2 {
         Member::new_str("Tester T. Testington", ""),
     ]);
 
-    SystemUf2::new_from_box("Example system".to_string().into_boxed_str(), members)
+    SystemUf2::new_from_box(
+        "PluralKit Example System".to_string().into_boxed_str(),
+        members,
+    )
 }
