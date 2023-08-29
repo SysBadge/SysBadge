@@ -85,6 +85,12 @@ pub struct SystemUf2 {
 
 #[cfg(feature = "simulator")]
 impl SystemUf2 {
+    pub const ZERO: Self = Self {
+        name: unsafe { ptr::from_raw_parts_mut(ptr::null_mut(), 0) },
+        members: unsafe { ptr::from_raw_parts_mut(ptr::null_mut(), 0) },
+        crc16: 0,
+    };
+
     /// This leaks the memory
     pub fn new_from_box(
         name: alloc::boxed::Box<str>,
