@@ -7,6 +7,9 @@ use sysbadge::Sysbadge;
 use wasm_bindgen::prelude::*;
 use web_sys::{console, Document};
 
+#[cfg(any(feature = "update", doc))]
+pub mod update;
+
 // Wee allocator as global alloc
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
@@ -59,6 +62,9 @@ pub fn main_js() -> Result<(), JsValue> {
     unsafe {
         SYSBADGE = Some(sysbadge);
     }
+
+    #[cfg(feature = "update")]
+    update::register()?;
 
     Ok(())
 }

@@ -11,7 +11,8 @@ authors = [ "Finn Behrens <me@kloenk.dev>" ]
 crate-type = ["cdylib"]
 
 [features]
-default = [ ]
+default = [ "update" ]
+update = [ "reqwest", "pkrs", "wasm-bindgen-futures", "wasm-bindgen/serde-serialize" ]
 
 [dependencies]
 sysbadge = { path = "..", features = [ "simulator", "wasm" ] }
@@ -21,6 +22,11 @@ wee_alloc = "0.4.5"
 
 embedded-graphics-web-simulator = "0.4.0"
 embedded-graphics = "0.8"
+
+# Fetching data
+reqwest = { version = "0.11", optional = true }
+pkrs = { version = "0.3.1", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
 
 [dependencies.web-sys]
 version = "0.3"
