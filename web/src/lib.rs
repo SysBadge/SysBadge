@@ -34,7 +34,7 @@ extern "C" {
 
 #[wasm_bindgen]
 pub struct SysbadgeApp {
-    badge: RwLock<Sysbadge<'static, WebSimulatorDisplay<BinaryColor>>>,
+    badge: Rc<RwLock<Sysbadge<'static, WebSimulatorDisplay<BinaryColor>>>>,
     //system: *mut SystemUf2,
     system: UnsafeCell<SystemUf2>,
 }
@@ -51,13 +51,14 @@ impl SysbadgeApp {
         let badge = Sysbadge::new_with_system(display, unsafe { &*system.get() });
 
         Self {
-            badge: RwLock::new(badge),
+            badge: Rc::new(RwLock::new(badge)),
             system,
         }
     }
 
-    pub fn register_buttons(cfg: Option<SysbadgeConfig>) {
+    pub fn register_buttons(&self, cfg: Option<SysbadgeConfig>) {
         let document = web_sys::window().unwrap().document().unwrap();
+        self.add_button_event_listener("sysbadge-app-button-b", &document, sysbadge::Button::B);
         /*add_button_event_listener("sysbadge-app-button-a", &document, sysbadge::Button::A);
         add_button_event_listener("sysbadge-app-button-b", &document, sysbadge::Button::B);
         add_button_event_listener("sysbadge-app-button-c", &document, sysbadge::Button::C);
@@ -99,20 +100,23 @@ impl SysbadgeApp {
         Ok(display)
     }
 
-    fn set_system(&mut self, system: SystemUf2) {
+    fn set_system(&mut self, system: SystemUf2) -> SystemUf2 {
         let system = UnsafeCell::new(system);
+        unsafe { core::ptr::swap(self.system.get(), system.get()) };
+        self.badge.write().unwrap().system = unsafe { &*self.system.get() };
 
-        let old = self.system;
-        self.system = Box::into_raw(Box::new(system));
-        self.badge.system = unsafe { &*self.system };
-
-        drop(unsafe { Box::from_raw(old) });
+        system.into_inner()
     }
 
-    /*fn add_button_event_listener(id: &str, document: &Document, button: sysbadge::Button) {
+    fn add_button_event_listener(&self, id: &str, document: &Document, button: sysbadge::Button) {
         if let Some(button_elem) = document.get_element_by_id(id) {
+            let badge = self.badge.clone();
             let closure = Closure::wrap(Box::new(move || {
-                press_button(button);
+                let mut badge = badge.write().unwrap();
+                badge.press(button);
+                badge.draw().unwrap();
+                badge.display.flush().unwrap();
+                drop(badge);
             }) as Box<dyn FnMut()>);
 
             button_elem
@@ -121,7 +125,7 @@ impl SysbadgeApp {
 
             closure.forget();
         }
-    }*/
+    }
 }
 
 /*
@@ -194,5 +198,5 @@ fn create_system() -> SystemUf2 {
         Member::new_str("Tester T. Testington", ""),
     ]);
 
-    SystemUf2::new_from_box("Example system", members)
+    SystemUf2::new_from_box("Example system".to_string().into_boxed_str(), members)
 }

@@ -1,6 +1,14 @@
 import {Button, SysbadgeApp} from "../../target/wasm32-unknown-unknown/release/pkg/sysbadge_web";
 
-export const app = new SysbadgeApp({});
+const app = new SysbadgeApp({});
+//app.draw();
 
-app.press_button(Button.B);
-app.draw();
+app.register_buttons();
+
+
+function animationFrame() {
+    app.draw();
+    //window.requestAnimationFrame(animationFrame);
+}
+
+//window.requestAnimationFrame(animationFrame);

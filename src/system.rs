@@ -1,111 +1,124 @@
 use alloc::format;
+use alloc::string::ToString;
+use core::alloc::Layout;
 use core::ffi::CStr;
 use core::mem::MaybeUninit;
+use core::ptr;
 
 /// Flash representaion of a member
 // INVARIANTS:
-// - `name` has to be valid utf8 and null terminated
-// - `pronouns` has to be valid utf8 and null terminated
+// - `name` has to be valid utf8
+// - `pronouns` has to be valid utf8
 #[repr(C)]
 pub struct Member {
-    name: [u8; 52],
-    pronouns: [u8; 20],
+    name: *mut str,
+    pronouns: *mut str,
 }
 
 #[cfg(feature = "simulator")]
 impl Member {
     pub fn new_str(name: &str, pronouns: &str) -> Self {
-        let ret = MaybeUninit::zeroed();
-        let mut ret: Member = unsafe { ret.assume_init() };
+        use core::alloc::Layout;
 
-        assert!(name.len() < ret.name.len());
-        assert!(pronouns.len() < ret.pronouns.len());
+        let layout_name = Layout::array::<u8>(name.len()).unwrap();
+        let layout_pronouns = Layout::array::<u8>(pronouns.len()).unwrap();
+        let (layout, pronouns_offset) = layout_name.extend(layout_pronouns).unwrap();
 
-        ret.name[..name.len()].copy_from_slice(name.as_bytes());
-        ret.pronouns[..pronouns.len()].copy_from_slice(pronouns.as_bytes());
+        let ptr = unsafe {
+            let ptr = alloc::alloc::alloc(layout);
+            ptr::copy_nonoverlapping(name.as_ptr(), ptr, name.len());
+            ptr::copy_nonoverlapping(pronouns.as_ptr(), ptr.add(pronouns_offset), pronouns.len());
+            ptr
+        };
 
-        ret
+        Self {
+            name: ptr::from_raw_parts_mut(ptr.cast(), name.len()),
+            pronouns: ptr::from_raw_parts_mut(
+                unsafe { ptr.add(pronouns_offset).cast() },
+                pronouns.len(),
+            ),
+        }
     }
 }
 
 impl Member {
+    #[inline(always)]
     pub fn name(&self) -> &str {
         // SAFETY: type invariant
-        unsafe {
-            CStr::from_bytes_until_nul(&self.name)
-                .unwrap_unchecked()
-                .to_str()
-                .unwrap_unchecked()
-        }
+        unsafe { &*self.name }
     }
 
+    #[inline(always)]
     pub fn pronouns(&self) -> &str {
         // SAFETY: type invariant
-        unsafe {
-            CStr::from_bytes_until_nul(&self.pronouns)
-                .unwrap_unchecked()
-                .to_str()
-                .unwrap_unchecked()
+        unsafe { &*self.pronouns }
+    }
+}
+
+#[cfg(feature = "simulator")]
+impl Drop for Member {
+    fn drop(&mut self) {
+        // TEST if really from simulator memory
+        let name_len = core::ptr::metadata(self.name);
+        if unsafe { (self.name as *const u8).add(name_len) } == (self.pronouns as *const u8) {
+            unsafe {
+                alloc::alloc::dealloc(
+                    self.name.cast(),
+                    Layout::from_size_align_unchecked(name_len + ptr::metadata(self.pronouns), 1),
+                )
+            }
         }
     }
 }
 
 /// System definition as in the flash.
 // INVARIANTS:
-// - `name` has to be valid utf8 and null terminated
-// - `members` has to point to a member array and be valid for `num_members`
+// - `name` and `members` have to be valid fat pointers
+// - `name` has to point to a valid utf8 string
+// - `members` has to point to a valid member array
 #[repr(C)]
 pub struct SystemUf2 {
-    name: [u8; 100],
-    members: *const Member,
-    num_members: u16,
+    name: *const str,
+    members: *const [Member],
     crc16: u16,
 }
 
 #[cfg(feature = "simulator")]
 impl SystemUf2 {
-    pub const ZERO: Self = Self {
-        name: [0; 100],
-        members: core::ptr::null(),
-        num_members: 0,
-        crc16: 0,
-    };
-
     /// This leaks the memory
-    pub fn new_from_box(name: &str, members: alloc::boxed::Box<[Member]>) -> Self {
-        let num_members = members.len() as u16;
-        let mut ret = Self {
-            name: [0; 100],
-            members: alloc::boxed::Box::leak(members).as_ptr(),
-            num_members,
+    pub fn new_from_box(
+        name: alloc::boxed::Box<str>,
+        members: alloc::boxed::Box<[Member]>,
+    ) -> Self {
+        Self {
+            name: alloc::boxed::Box::leak(name),
+            members: alloc::boxed::Box::leak(members),
             crc16: 0,
-        };
-
-        assert!(name.len() < 100);
-        ret.name[..name.len()].copy_from_slice(name.as_bytes());
-
-        ret
+        }
     }
 }
 
 impl SystemUf2 {
+    #[inline(always)]
     pub fn name(&self) -> &str {
         // SAFETY: type invariant
-        unsafe {
-            CStr::from_bytes_until_nul(&self.name)
-                .unwrap_unchecked()
-                .to_str()
-                .unwrap_unchecked()
-        }
+        unsafe { &*self.name }
     }
 
+    #[inline(always)]
     pub fn members(&self) -> &[Member] {
         // SAFETY: held by type invariant
-        unsafe { core::slice::from_raw_parts(self.members, self.num_members as usize) }
+        unsafe { &*self.members }
     }
 
+    #[inline(always)]
     pub fn len(&self) -> usize {
-        self.num_members as usize
+        core::ptr::metadata(self.members)
+    }
+
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
