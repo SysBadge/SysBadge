@@ -3,10 +3,10 @@ use pkrs::model::PkId;
 use std::mem::MaybeUninit;
 use std::{mem, ptr};
 use sysbadge::system::{Member, SystemUf2};
-use wasm_bindgen::prelude::{wasm_bindgen, Closure};
+use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{console, window, Blob, Document, HtmlButtonElement, HtmlElement, HtmlInputElement};
+use web_sys::{window, Blob, Document, HtmlElement, HtmlInputElement};
 
 const RP2040_FAMILY_ID: u32 = 0xe48bff56;
 // HAS TO BE KEP IN SYNC WITH THE VALUE IN `fw/memory.x`
@@ -24,7 +24,7 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
         {
             let closur = Closure::wrap(Box::new(move || {
                 spawn_local(async move {
-                    let system = update().await.unwrap();
+                    let _system = update().await.unwrap();
                 });
             }) as Box<dyn FnMut()>);
 
@@ -173,7 +173,7 @@ impl System {
         unsafe {
             ptr::copy_nonoverlapping(
                 (offset + name_addr).to_le_bytes().as_ptr(),
-                (system.as_mut_ptr() as *mut u8),
+                system.as_mut_ptr() as *mut u8,
                 4,
             );
             ptr::copy_nonoverlapping(
@@ -196,7 +196,7 @@ impl System {
             // TODO: crc16
         }
 
-        let mut system: SystemUf2 = unsafe { system.assume_init() };
+        let system: SystemUf2 = unsafe { system.assume_init() };
         ret.extend(core::iter::repeat(0).take(member_addr as usize));
         unsafe {
             ptr::copy_nonoverlapping(

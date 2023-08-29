@@ -122,5 +122,5 @@ fn create_system() -> SystemUf2 {
         Member::new_str("Tester T. Testington", ""),
     ]);
 
-    SystemUf2::new_from_box("Example system", members)
+    SystemUf2::new_from_box("Example system".to_string().into_boxed_str(), members)
 }

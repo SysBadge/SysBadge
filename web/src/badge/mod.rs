@@ -16,7 +16,7 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
                 .scale(1)
                 .pixel_spacing(1)
                 .build();
-        let mut display: WebSimulatorDisplay<BinaryColor> = WebSimulatorDisplay::new(
+        let display: WebSimulatorDisplay<BinaryColor> = WebSimulatorDisplay::new(
             (sysbadge::WIDTH, sysbadge::HEIGHT),
             &output_settings,
             document

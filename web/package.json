@@ -1,10 +1,11 @@
 {
   "author": "Rahul Thakoor <rahul.thakoor@gmail.com",
-  "name": "embedded-graphics-web-simulator",
+  "name": "sysbadge-web",
   "version": "0.1.0",
+  "license": "gpl-3.0",
   "scripts": {
-    "build": "rimraf dist pkg && webpack",
-    "start": "rimraf dist pkg && webpack-dev-server --open -d",
+    "build": "rimraf dist && webpack",
+    "start": "rimraf dist && webpack-dev-server --open -d",
     "test": "cargo test && wasm-pack test --headless"
   },
   "devDependencies": {
@@ -13,9 +14,5 @@
     "webpack": "^5.88.2",
     "webpack-cli": "^3.3.3",
     "webpack-dev-server": "^3.7.1"
-  },
-  "dependencies": {
-    "ts-loader": "^9.4.4",
-    "typescript": "^5.2.2"
   }
 }

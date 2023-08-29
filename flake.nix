@@ -39,16 +39,17 @@
           overlays = [ fenix.overlays.default self.overlays.default ];
         });
 
-      sourcesFilter = craneLib: name: type:
+      sourcesFilter = craneLib: lib: name: type:
         let
           baseName = baseNameOf (toString name);
           memory = baseName == "memory.x";
-        in craneLib.filterCargoSources name type || memory;
+          web = lib.any (suffix: lib.hasSuffix suffix baseName) [ ".html" ];
+        in craneLib.filterCargoSources name type || memory || web;
 
       cleanSources = craneLib: src: lib:
         lib.cleanSourceWith {
           src = (lib.cleanSource src);
-          filter = (sourcesFilter craneLib);
+          filter = (sourcesFilter craneLib lib);
         };
 
       rustTarget = target:
@@ -150,6 +151,20 @@
               cargoExtraArgs =
                 "-Z build-std=compiler_builtins,core,alloc --target thumbv6m-none-eabi --package sysbadge-fw";
             })) { };
+          sysbadge_wasm_unwraped = final.callPackage ({ lib, stdenv, fenix }:
+            let
+              system = stdenv.targetPlatform.system;
+              toolchain = (fenixToolchain fenix);
+              craneLib = crane.lib.${system}.overrideToolchain toolchain;
+            in craneLib.buildPackage ((commonArgs craneLib {
+              inherit lib stdenv toolchain;
+              fw = false;
+            }) // {
+              cargoArtifacts = cargoArtifacts craneLib toolchain;
+              pname = "sysbadge-wasm-unwraped";
+              cargoExtraArgs =
+                "-Z build-std=compiler_builtins,core,alloc,std,panic_abort --target wasm32-unknown-unknown --package sysbadge-web";
+            })) { };
         };
       overlays.sysbadge_web = final: prev: {
         sysbadge_images = final.callPackage
@@ -164,6 +179,47 @@
 
               EG_SIMULATOR_DUMP=$out/share/sysbadge/one.png sysbadge-simulator C
             '') { };
+        sysbadge_wasm = final.callPackage
+          ({ runCommand, sysbadge_wasm_unwraped, wasm-bindgen-cli }:
+            runCommand "sysbadge-wasm" {
+              buildInputs = [ wasm-bindgen-cli ];
+            } ''
+              mkdir -p $out/share/sysbadge
+
+              wasm-bindgen ${sysbadge_wasm_unwraped}/lib/sysbadge_web.wasm --out-dir $out/share/sysbadge/bundler --target bundler
+            '') { };
+
+        sysbadge_web = final.callPackage
+          ({ mkYarnPackage, yarn2nix, runCommand, sysbadge_wasm }:
+            let
+              yarnLock = ./web/yarn.lock;
+              yarnNix = if builtins ? currentSystem then
+                let pkgs = nixpkgsFor.${builtins.currentSystem};
+                in pkgs.runCommand "yarn.nix" { } ''
+                  ${pkgs.yarn2nix}/bin/yarn2nix --lockfile ${yarnLock} --no-patch > $out
+                ''
+              else
+                runCommand "yarn.nix" { } ''
+                  ${yarn2nix}/bin/yarn2nix --lockfile ${yarnLock} --no-patch > $out
+                '';
+            in mkYarnPackage {
+              name = "sysbadge-web";
+              src = ./web;
+              packageJSON = ./web/package.json;
+              SYSBADGE_WASM_PATH = "${sysbadge_wasm}/share/sysbadge";
+
+              buildPhase = ''
+                export HOME=$(mktemp -d)
+                yarn --offline build
+              '';
+              installPhase = ''
+                mkdir -p $out
+                cp -r deps/sysbadge-web/dist/* $out/
+              '';
+              distPhase = "true";
+
+              inherit yarnNix yarnLock;
+            }) { };
       };
       overlays.default = final: prev:
         (self.overlays.sysbadge_fw final prev)
@@ -172,7 +228,9 @@
       legacyPackages = nixpkgsFor;
 
       packages = forAllSystems (system: {
-        inherit (nixpkgsFor.${system}) sysbadge_simulator sysbadge_fw probe-run;
+        inherit (nixpkgsFor.${system})
+          sysbadge_simulator sysbadge_fw sysbadge_wasm_unwraped sysbadge_wasm
+          sysbadge_web probe-run;
       });
 
       apps = forAllSystems (system: {

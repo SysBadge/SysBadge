@@ -1,9 +1,4 @@
-use pkrs::model::System;
-use std::cell::UnsafeCell;
-use std::rc::Rc;
-use std::sync::RwLock;
 use wasm_bindgen::prelude::*;
-use web_sys::{console, Document};
 
 mod badge;
 #[cfg(any(feature = "update", doc))]

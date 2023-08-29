@@ -3,22 +3,21 @@ const CopyPlugin = require("copy-webpack-plugin");
 
 const dist = path.resolve(__dirname, "dist");
 
+const sysbadge = process.env.SYSBADGE_WASM_PATH ?
+    path.resolve(process.env.SYSBADGE_WASM_PATH, "bundler") :
+    path.resolve(__dirname, "../target/wasm32-unknown-unknown/release/pkg/");
+
+console.log("Using sysbadge wasm from: " + sysbadge)
+
 module.exports = {
     mode: "production",
     entry: {
-        index: "./js/index.ts"
-    },
-    module: {
-        rules: [
-            {
-                test: /\.tsx?$/,
-                use: "ts-loader",
-                exclude: /node_modules/,
-            }
-        ],
+        index: "./js/index.js"
     },
     resolve: {
-        extensions: [".tsx", ".ts", ".js"],
+        alias: {
+            Sysbadge: sysbadge
+        }
     },
     output: {
         path: dist,
