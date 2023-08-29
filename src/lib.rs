@@ -4,13 +4,15 @@ extern crate alloc;
 
 use crate::system::{DrawableMember, SystemUf2};
 use core::hint::unreachable_unchecked;
-use defmt::{debug, info, println};
 use embedded_graphics::geometry::AnchorY;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::text::{Alignment, Text};
+
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::wasm_bindgen;
 
 pub mod system;
 
@@ -57,8 +59,10 @@ where
     }
 }
 
-#[derive(Eq, PartialEq, Debug, Clone, Copy, defmt::Format)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 #[repr(u8)]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Button {
     A,
     B,
@@ -69,8 +73,9 @@ pub enum Button {
     USER,
 }
 
-#[derive(Eq, PartialEq, Debug, Clone, Copy, defmt::Format, Default)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy, Default)]
 #[repr(u8)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Select {
     #[default]
     None,
@@ -88,12 +93,14 @@ impl Select {
     }
 }
 
-#[derive(Eq, PartialEq, Debug, Clone, Copy, defmt::Format, Default)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 struct MemberCell {
     id: u16,
 }
 
-#[derive(Eq, PartialEq, Debug, Clone, defmt::Format)]
+#[derive(Eq, PartialEq, Debug, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 struct CurrentMembers {
     members: [MemberCell; 4],
     sel: (u8, Select),
@@ -164,7 +171,10 @@ impl CurrentMembers {
                     self.sel.1 = Select::Select;
                 }
             }
-            _ => defmt::warn!("Unhandled member button press: {:?}", button),
+            _ => {
+                #[cfg(feature = "defmt")]
+                defmt::warn!("Unhandled member button press: {:?}", button)
+            }
         }
     }
 
@@ -265,8 +275,9 @@ impl CurrentMembers {
     }
 }
 
-#[derive(Eq, PartialEq, Debug, defmt::Format)]
+#[derive(Eq, PartialEq, Debug)]
 #[repr(u8)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum CurrentMenu {
     SystemName,
     Version,
@@ -286,7 +297,7 @@ impl CurrentMenu {
             }
             Self::Member(c) => c.button_press(button, members),
             _ => {
-                defmt::warn!("Unhandled button press: {:?}", button)
+                //defmt::warn!("Unhandled button press: {:?}", button)
             }
         }
     }
@@ -337,9 +348,12 @@ where
 
     pub fn press(&mut self, button: Button) {
         self.current.change(button, self.system.len());
-        debug!(
+
+        #[cfg(feature = "defmt")]
+        defmt::debug!(
             "Pressed button: {:?}, switched to: {:?}",
-            button, self.current
+            button,
+            self.current
         );
     }
 

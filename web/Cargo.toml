@@ -14,7 +14,7 @@ crate-type = ["cdylib"]
 default = [ ]
 
 [dependencies]
-sysbadge = { path = "..", features = [ "simulator" ] }
+sysbadge = { path = "..", features = [ "simulator", "wasm" ] }
 
 wasm-bindgen = "=0.2.84"
 wee_alloc = "0.4.5"

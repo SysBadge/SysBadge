@@ -64,6 +64,13 @@ pub struct SystemUf2 {
 
 #[cfg(feature = "simulator")]
 impl SystemUf2 {
+    pub const ZERO: Self = Self {
+        name: [0; 100],
+        members: core::ptr::null(),
+        num_members: 0,
+        crc16: 0,
+    };
+
     /// This leaks the memory
     pub fn new_from_box(name: &str, members: alloc::boxed::Box<[Member]>) -> Self {
         let num_members = members.len() as u16;
@@ -134,10 +141,11 @@ where
         }
     }
 
-    /*fn pronoun<D: DrawTarget<Color = <Self as Drawable>::Color>>(
-        &self,
-        target: &mut D,
-    ) -> DrawResult<D> {
+    fn pronoun<D>(&self, target: &mut D) -> DrawResult<D>
+    where
+        D: DrawTarget,
+        <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
+    {
         let (pos, align, font) = match self.bounds.size.height {
             x if x > 100 => (
                 Point::new(5, (self.bounds.size.height - 15) as i32),
@@ -159,7 +167,7 @@ where
         Text::with_alignment(
             &format!("({})", self.member.pronouns()),
             self.bounds.top_left + pos,
-            MonoTextStyle::new(font, super::BINARY_COLOR_ON),
+            MonoTextStyle::new(font, super::BINARY_COLOR_ON.into()),
             align,
         )
         .draw(target)?;
@@ -167,10 +175,11 @@ where
         Ok(())
     }
 
-    fn name<D: DrawTarget<Color = <Self as Drawable>::Color>>(
-        &self,
-        target: &mut D,
-    ) -> DrawResult<D> {
+    fn name<D>(&self, target: &mut D) -> DrawResult<D>
+    where
+        D: DrawTarget,
+        <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
+    {
         let (pos, font) = match self.bounds.size.height {
             x if x > 40 => (
                 Point::new(5, 15),
@@ -185,13 +194,13 @@ where
         Text::with_alignment(
             self.member.name(),
             self.bounds.top_left + pos,
-            MonoTextStyle::new(font, super::BINARY_COLOR_ON),
+            MonoTextStyle::new(font, super::BINARY_COLOR_ON.into()),
             Alignment::Left,
         )
         .draw(target)?;
 
         Ok(())
-    }*/
+    }
 }
 
 impl<'a, C> Drawable for DrawableMember<'a, C>
@@ -210,10 +219,10 @@ where
             PrimitiveStyle::with_stroke(super::BINARY_COLOR_ON.into(), self.select.stroke_with());
         self.bounds.draw_styled(&bound_style, target)?;
 
-        /*self.name(target)?;
+        self.name(target)?;
         if !self.member.pronouns().is_empty() {
             self.pronoun(target)?;
-        }*/
+        }
 
         Ok(self.bounds)
     }

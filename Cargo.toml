@@ -10,9 +10,11 @@ authors = [ "Finn Behrens <me@kloenk.dev>" ]
 default = [ ]
 simulator = [ ]
 invert = [ ]
+wasm = [ "dep:wasm-bindgen" ]
+defmt = [ "dep:defmt" ]
 
 [dependencies]
-defmt = { version = "0.3", features = ["alloc"] }
+defmt = { version = "0.3", features = ["alloc"], optional = true }
 
 nb = "1.1"
 fugit = "0.3"
@@ -20,6 +22,8 @@ fugit = "0.3"
 # Display
 embedded-graphics = "0.8"
 uc8151 = { version = "0.2" }
+
+wasm-bindgen = { version = "=0.2.84", optional = true }
 
 [workspace]
 members = [

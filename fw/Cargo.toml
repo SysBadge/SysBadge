@@ -8,7 +8,7 @@ authors = [ "Finn Behrens <me@kloenk.dev>" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sysbadge = { path = "..", features = [ "invert" ]}
+sysbadge = { path = "..", features = [ "invert", "defmt" ]}
 
 cortex-m = { version = "0.7" }
 cortex-m-rt = { version = "0.7" }
