@@ -1,15 +1,18 @@
 #![no_std]
 #![no_main]
+#![feature(type_alias_impl_trait)]
 #![feature(allocator_api, alloc_error_handler)]
 
 use alloc_cortex_m::CortexMHeap;
 use core::alloc::Layout;
 use cortex_m::delay::Delay;
 use defmt::info;
+use embassy_time::{Duration, Timer};
+
 // The macro for our start-up function
-use pimoroni_badger2040::entry;
+/*use pimoroni_badger2040::entry;
 use pimoroni_badger2040::hal;
-use pimoroni_badger2040::hal::{pac, Clock};
+use pimoroni_badger2040::hal::{pac, Clock};*/
 
 extern crate alloc;
 
@@ -19,6 +22,10 @@ static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
 // Ensure we halt the program on panic (if we don't mention this crate it won't
 // be linked)
 use defmt_rtt as _;
+use embassy_executor::Spawner;
+use embassy_rp::gpio::{Input, Level, Output, Pull};
+use embassy_rp::spi::Spi;
+use embassy_rp::{peripherals, Peripherals};
 use panic_probe as _;
 
 use uc8151::Uc8151;
@@ -26,66 +33,43 @@ use uc8151::Uc8151;
 // GPIO traits
 use embedded_hal::digital::v2::OutputPin;
 use fugit::{HertzU32, RateExtU32};
-use sysbadge::Sysbadge;
+use sysbadge::{Button, Sysbadge};
 
-#[entry]
-fn main() -> ! {
+static mut SYSBADGE: Option<
+    Sysbadge<
+        Uc8151<
+            Spi<peripherals::SPI0, embassy_rp::spi::Blocking>,
+            Output<peripherals::PIN_17>,
+            Output<peripherals::PIN_20>,
+            Input<peripherals::PIN_26>,
+            Output<peripherals::PIN_21>,
+        >,
+    >,
+> = None;
+
+#[embassy_executor::main]
+async fn main(spawner: Spawner) {
     unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, 2048) }
 
-    // Grab our singleton objects
-    let mut pac = pac::Peripherals::take().expect("Failed to get pac");
-    let cp = pac::CorePeripherals::take().expect("Failed to get CP");
+    let p = embassy_rp::init(Default::default());
 
-    // Set up the watchdog driver - needed by the clock setup code
-    let mut watchdog = hal::Watchdog::new(pac.WATCHDOG);
-
-    // Configure the clocks
-    //
-    // The default is to generate a 125 MHz system clock
-    let clocks = hal::clocks::init_clocks_and_plls(
-        pimoroni_badger2040::XOSC_CRYSTAL_FREQ,
-        pac.XOSC,
-        pac.CLOCKS,
-        pac.PLL_SYS,
-        pac.PLL_USB,
-        &mut pac.RESETS,
-        &mut watchdog,
-    )
-    .ok()
-    .expect("Failed to setup clock");
-
-    // The single-cycle I/O block controls our GPIO pins
-    let sio = hal::Sio::new(pac.SIO);
-
-    // Set the pins up according to their function on this particular board
-    let pins = pimoroni_badger2040::Pins::new(
-        pac.IO_BANK0,
-        pac.PADS_BANK0,
-        sio.gpio_bank0,
-        &mut pac.RESETS,
+    let spi = Spi::new_blocking(
+        p.SPI0,
+        p.PIN_18,
+        p.PIN_19,
+        p.PIN_16,
+        embassy_rp::spi::Config::default(),
     );
+    let cs = Output::new(p.PIN_17, Level::Low);
+    let dc = Output::new(p.PIN_20, Level::Low);
+    let busy = Input::new(p.PIN_26, Pull::Up);
+    let reset = Output::new(p.PIN_21, Level::Low);
 
-    pins.sclk.into_mode::<hal::gpio::FunctionSpi>();
-    pins.mosi.into_mode::<hal::gpio::FunctionSpi>();
-    let spi: hal::spi::Spi<_, _, 8> = hal::spi::Spi::new(pac.SPI0);
-    let spi = spi.init(
-        &mut pac.RESETS,
-        &clocks.peripheral_clock,
-        HertzU32::Hz(1000000),
-        &embedded_hal::spi::MODE_0,
-    );
-
-    let dc = pins.inky_dc.into_push_pull_output();
-    let cs = pins.inky_cs_gpio.into_push_pull_output();
-    let busy = pins.inky_busy.into_pull_up_input();
-    let reset = pins.inky_res.into_push_pull_output();
-
-    let mut delay = Delay::new(cp.SYST, clocks.system_clock.freq().to_Hz());
     let mut display = Uc8151::new(spi, cs, dc, busy, reset);
-    info!("Setting up display");
     display
-        .setup(&mut delay, uc8151::LUT::Fast)
-        .expect("setting up display");
+        .setup(&mut embassy_time::Delay, uc8151::LUT::Fast)
+        .unwrap();
+
     display.enable();
     display.update().expect("Failed to update");
 
@@ -96,8 +80,77 @@ fn main() -> ! {
     info!("updating display");
     sysbadge.display.update().expect("failed to update");
 
-    loop {}
-    defmt::todo!()
+    unsafe {
+        SYSBADGE = Some(sysbadge);
+    }
+
+    spawner.spawn(button_task_a()).unwrap();
+    spawner.spawn(button_task_b()).unwrap();
+    spawner.spawn(button_task_c()).unwrap();
+    spawner.spawn(button_task_up()).unwrap();
+    spawner.spawn(button_task_down()).unwrap();
+}
+
+const DELAY: u64 = 150;
+#[embassy_executor::task]
+async fn button_task_a() {
+    let mut pin = Input::new(unsafe { peripherals::PIN_12::steal() }, Pull::Down);
+    loop {
+        pin.wait_for_high().await;
+        press_button(Button::A).await;
+        Timer::after(Duration::from_millis(DELAY)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn button_task_b() {
+    let mut pin = Input::new(unsafe { peripherals::PIN_13::steal() }, Pull::Down);
+    loop {
+        pin.wait_for_high().await;
+        press_button(Button::B).await;
+        Timer::after(Duration::from_millis(DELAY)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn button_task_c() {
+    let mut pin = Input::new(unsafe { peripherals::PIN_14::steal() }, Pull::Down);
+    loop {
+        pin.wait_for_high().await;
+        press_button(Button::C).await;
+        Timer::after(Duration::from_millis(DELAY)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn button_task_up() {
+    let mut pin = Input::new(unsafe { peripherals::PIN_15::steal() }, Pull::Down);
+    loop {
+        pin.wait_for_high().await;
+        press_button(Button::Up).await;
+        Timer::after(Duration::from_millis(DELAY)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn button_task_down() {
+    let mut pin = Input::new(unsafe { peripherals::PIN_11::steal() }, Pull::Down);
+    loop {
+        pin.wait_for_high().await;
+        press_button(Button::Down).await;
+        Timer::after(Duration::from_millis(DELAY)).await;
+    }
+}
+
+async fn press_button(button: Button) {
+    unsafe {
+        if let Some(sysbadge) = &mut SYSBADGE {
+            sysbadge.press(button);
+            if sysbadge.draw().expect("failed to draw display") {
+                sysbadge.display.update().expect("failed to update");
+            }
+        }
+    }
 }
 
 #[alloc_error_handler]

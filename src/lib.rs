@@ -312,6 +312,7 @@ where
     pub display: D,
     pub system: &'a SystemUf2,
     current: CurrentMenu,
+    hash: u16,
 }
 
 impl<D> Sysbadge<'static, D>
@@ -344,6 +345,7 @@ where
             display,
             system,
             current: CurrentMenu::SystemName,
+            hash: 0,
         }
     }
 
@@ -358,13 +360,35 @@ where
         );
     }
 
-    pub fn draw(&mut self) -> DrawResult<D> {
+    pub fn draw(&mut self) -> DrawResult<D, bool> {
+        let hash = self.hash();
+        if self.hash == hash {
+            return Ok(false);
+        }
+
+        self.force_draw()?;
+        self.hash = hash;
+        Ok(true)
+    }
+
+    pub fn force_draw(&mut self) -> DrawResult<D> {
         self.display.clear(BINARY_COLOR_OFF.into())?;
         match self.current {
             CurrentMenu::SystemName => self.draw_system_name(),
             CurrentMenu::Version => self.draw_version(),
             CurrentMenu::Member(ref cur) => cur.draw(self.system, &mut self.display),
         }
+    }
+
+    fn hash(&self) -> u16 {
+        let mut crc: crc16::State<crc16::BUYPASS> = crc16::State::new();
+        crc.update(unsafe {
+            core::slice::from_raw_parts(
+                &self.current as *const CurrentMenu as *const u8,
+                core::mem::size_of::<CurrentMenu>(),
+            )
+        });
+        crc.get()
     }
 
     fn draw_system_name(&mut self) -> DrawResult<D> {

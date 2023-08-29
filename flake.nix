@@ -253,11 +253,12 @@
           pkgs = nixpkgsFor.${system};
           shell = { lib, stdenv, mkShell, fenix, rust-analyzer-nightly, gdb
             , cargo-watch, cargo-edit, cargo-outdated, cargo-asm, libiconv
-            , flip-link, probe-run, SDL2, just, yarn, wasm-bindgen-cli }:
+            , flip-link, probe-run, SDL2, just, yarn, wasm-bindgen-cli
+            , elf2uf2-rs }:
             mkShell {
               nativeBuildInputs = [
                 (fenixToolchain fenix)
-                rust-analyzer-nightly
+                #rust-analyzer-nightly
                 cargo-watch
                 cargo-edit
                 cargo-outdated
@@ -265,6 +266,7 @@
                 just
                 flip-link
                 probe-run
+                elf2uf2-rs
                 SDL2
 
                 yarn

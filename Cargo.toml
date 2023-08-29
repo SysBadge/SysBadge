@@ -18,12 +18,13 @@ defmt = { version = "0.3", features = ["alloc"], optional = true }
 
 nb = "1.1"
 fugit = "0.3"
+crc16 = "0.4.0"
 
 # Display
 embedded-graphics = "0.8"
 uc8151 = { version = "0.2" }
 
-wasm-bindgen = { version = "=0.2.84", optional = true }
+wasm-bindgen = { version = "=0.2.87", optional = true }
 
 [workspace]
 members = [
