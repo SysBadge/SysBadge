@@ -52,20 +52,11 @@
           filter = (sourcesFilter craneLib lib);
         };
 
-      rustTarget = target:
-        if target == "aarch64-darwin" then
-          "aarch64-apple-darwin"
-        else if target == "aarch64-linux" then
-          "aarch64-unknown-linux-gnu"
-        else if target == "x86_64-darwin" then
-          "x86_64-apple-darwin"
-        else if target == "x86_64-linux" then
-          "x86_64-unknown-linux-gnu"
-        else
-          target;
     in {
       overlays.sysbadge_fw = final: prev:
         let
+          rustTarget = target: final.rust.toRustTargetSpec (final.lib.systems.elaborate target);
+
           commonArgs = craneLib:
             { lib ? final.lib, stdenv ? final.pkgs.stdenv, SDL2 ? null
             , libiconv ? final.pkgs.libiconv, toolchain, fw ? true }:
