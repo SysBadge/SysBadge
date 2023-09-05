@@ -14,7 +14,7 @@ cortex-m = { version = "0.7" }
 cortex-m-rt = { version = "0.7" }
 alloc-cortex-m = { version = "0.4" }
 embedded-hal = { version = "0.2.5", features = ["unproven"] }
-rp2040-hal = { version = "0.8.0", features = [ "disable-intrinsics" ] }
+#rp2040-hal = { version = "0.8.0", features = [ "disable-intrinsics" ] }
 
 # Board support
 pimoroni_badger2040 = { version = "0.4" }
@@ -26,3 +26,12 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 uc8151 = { version = "0.2", features = [ "graphics" ] }
 
 fugit = "0.3.7"
+
+static_cell = "1.2.0"
+# Embassy
+embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", features = ["defmt", "unstable-traits", "nightly", "unstable-pac", "time-driver", "critical-section-impl"] }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", features = ["defmt"] }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy.git" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy.git", features = ["nightly", "unstable-traits", "defmt", "defmt-timestamp-uptime"] }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", features = ["nightly", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt", "integrated-timers"] }
+
