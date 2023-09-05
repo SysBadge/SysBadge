@@ -2376,14 +2376,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sysbadge-cli"
-version = "0.1.0"
-dependencies = [
- "rusb",
- "sysbadge",
-]
-
-[[package]]
 name = "sysbadge-fw"
 version = "0.1.0"
 dependencies = [
@@ -2414,6 +2406,14 @@ dependencies = [
  "defmt",
  "embedded-graphics",
  "embedded-graphics-simulator",
+ "sysbadge",
+]
+
+[[package]]
+name = "sysbadge-usb"
+version = "0.1.0"
+dependencies = [
+ "rusb",
  "sysbadge",
 ]
 

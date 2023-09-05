@@ -5,6 +5,7 @@ extern crate alloc;
 
 use crate::system::{DrawableMember, SystemUf2};
 use core::hint::unreachable_unchecked;
+use core::ptr;
 use embedded_graphics::geometry::AnchorY;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
@@ -114,13 +115,13 @@ impl Select {
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-struct MemberCell {
+pub struct MemberCell {
     id: u16,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-struct CurrentMembers {
+pub struct CurrentMembers {
     members: [MemberCell; 4],
     sel: (u8, Select),
     len: u8,
@@ -298,7 +299,7 @@ impl CurrentMembers {
 #[derive(Eq, PartialEq, Debug)]
 #[repr(u8)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-enum CurrentMenu {
+pub enum CurrentMenu {
     SystemName,
     Version,
     Member(CurrentMembers),
@@ -320,6 +321,16 @@ impl CurrentMenu {
                 //defmt::warn!("Unhandled button press: {:?}", button)
             }
         }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        let ptr = self as *const Self as *const u8;
+        unsafe { core::slice::from_raw_parts(ptr, core::mem::size_of::<Self>()) }
+    }
+
+    pub fn from_bytes(slice: &[u8]) -> Self {
+        let ptr = slice.as_ptr() as *const Self;
+        unsafe { ptr::read(ptr) }
     }
 }
 
@@ -397,6 +408,14 @@ where
             CurrentMenu::Version => self.draw_version(),
             CurrentMenu::Member(ref cur) => cur.draw(self.system, &mut self.display),
         }
+    }
+
+    pub fn current(&self) -> &CurrentMenu {
+        &self.current
+    }
+
+    pub fn set_current(&mut self, state: CurrentMenu) {
+        self.current = state
     }
 
     fn hash(&self) -> u16 {

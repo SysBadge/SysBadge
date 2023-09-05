@@ -128,6 +128,9 @@ impl SystemUf2 {
     }
 }
 
+unsafe impl Send for SystemUf2 {}
+unsafe impl Sync for SystemUf2 {}
+
 use crate::DrawResult;
 use embedded_graphics::draw_target::DrawTarget;
 use embedded_graphics::mono_font::MonoTextStyle;

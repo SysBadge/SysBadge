@@ -4,6 +4,8 @@ use defmt::*;
 use embassy_executor::Spawner;
 use embassy_futures::yield_now;
 use embassy_rp::usb::{Driver, Instance, InterruptHandler};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::mutex::Mutex;
 use embassy_usb::control::{InResponse, Recipient, Request, RequestType};
 use embassy_usb::types::InterfaceNumber;
 use embassy_usb::{Builder, Config, Handler};
@@ -15,11 +17,14 @@ embassy_rp::bind_interrupts!(struct Irqs {
 });
 
 #[embassy_executor::task]
-pub async fn init(spawner: Spawner) {
+pub async fn init(
+    spawner: Spawner,
+    badge: &'static Mutex<CriticalSectionRawMutex, crate::SysbadgeUc8151<'static>>,
+) {
     let driver = Driver::new(unsafe { embassy_rp::peripherals::USB::steal() }, Irqs);
 
     // Create config
-    let mut config = Config::new(0xc0de, 0xcafe);
+    let mut config = Config::new(sysusb::VID, sysusb::PID);
     config.manufacturer = Some("Kloenk");
     config.product = Some("Sysbadge");
     config.serial_number = Some("12345678");
@@ -38,7 +43,7 @@ pub async fn init(spawner: Spawner) {
     let mut bos_descriptor = [0; 256];
     let mut control_buf = [0; 64];
 
-    let mut state = class::State::new();
+    let mut state = class::State::new(badge);
 
     let mut builder = Builder::new(
         driver,
