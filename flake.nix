@@ -55,7 +55,8 @@
     in {
       overlays.sysbadge_fw = final: prev:
         let
-          rustTarget = target: final.rust.toRustTargetSpec (final.lib.systems.elaborate target);
+          rustTarget = target:
+            final.rust.toRustTargetSpec (final.lib.systems.elaborate target);
 
           commonArgs = craneLib:
             { lib ? final.lib, stdenv ? final.pkgs.stdenv, SDL2 ? null
@@ -126,22 +127,39 @@
                     rustTarget stdenv.targetPlatform.system
                   } --package sysbadge-simulator";
               })) { };
-          sysbadge_fw = final.callPackage ({ lib, stdenv, fenix, flip-link }:
-            let
-              system = stdenv.targetPlatform.system;
-              toolchain = (fenixToolchain fenix);
-              craneLib = crane.lib.${system}.overrideToolchain toolchain;
-            in craneLib.buildPackage ((commonArgs craneLib {
-              inherit lib stdenv toolchain;
-              fw = true;
-            }) // {
-              cargoArtifacts = cargoArtifacts craneLib toolchain;
-              pname = "sysbadge-fw";
-              nativeBuildIputs = [ flip-link ];
-              buildInputs = [ flip-link ];
-              cargoExtraArgs =
-                "-Z build-std=compiler_builtins,core,alloc --target thumbv6m-none-eabi --package sysbadge-fw";
-            })) { };
+          sysbadge_fw_unwraped = final.callPackage
+            ({ lib, stdenv, fenix, flip-link, elf2uf2-rs, libiconv }:
+              let
+                system = stdenv.targetPlatform.system;
+                toolchain = (fenixToolchain fenix);
+                craneLib = crane.lib.${system}.overrideToolchain toolchain;
+              in craneLib.buildPackage ((commonArgs craneLib {
+                inherit lib stdenv toolchain;
+                fw = true;
+              }) // {
+                cargoArtifacts = cargoArtifacts craneLib toolchain;
+                pname = "sysbadge-fw";
+                nativeBuildIputs = [ flip-link ];
+                buildInputs = [ flip-link ]
+                  ++ lib.optional stdenv.isDarwin libiconv;
+                cargoExtraArgs =
+                  "-Z build-std=compiler_builtins,core,alloc --target thumbv6m-none-eabi --package sysbadge-fw";
+
+                postInstallPhases = ''
+                  mkdir -p $out/share/sysbadge
+                  mv $out/bin/sysbadge-fw $out/share/sysbadge/sysbadge.elf
+                  rm -r $out/bin
+
+                  ${elf2uf2-rs}/bin/elf2uf2-rs $out/share/sysbadge/sysbadge.elf $out/share/sysbadge/sysbadge.uf2
+                '';
+              })) { };
+          sysbadge_fw = final.callPackage
+            ({ runCommand, sysbadge_fw_unwraped, elf2uf2-rs }:
+              runCommand "sysbadge-fw" { buildInputs = [ elf2uf2-rs ]; } ''
+                mkdir -p $out/share/sysbadge
+                cp ${sysbadge_fw_unwraped}/bin/sysbadge-fw $out/share/sysbadge/sysbadge.elf
+                elf2uf2-rs $out/share/sysbadge/sysbadge.elf $out/share/sysbadge/sysbadge.uf2
+              '') { };
           sysbadge_wasm_unwraped = final.callPackage ({ lib, stdenv, fenix }:
             let
               system = stdenv.targetPlatform.system;

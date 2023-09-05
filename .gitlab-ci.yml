@@ -23,11 +23,11 @@ nix_fw:
     - tags
   script:
     - nix build --extra-experimental-features "nix-command flakes" -L .#sysbadge_fw
-    - cp result/bin/* .
+    - cp result/share/sysbadge/* .
   artifacts:
     paths:
-      - sysbadge-fw
-      #- sysbadge.uf2
+      - sysbadge.elf
+      - sysbadge.uf2
       #- sysbadge.bin
 
 #release:
