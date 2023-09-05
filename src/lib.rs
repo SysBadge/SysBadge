@@ -161,6 +161,7 @@ impl CurrentMembers {
                 self.sel.1 = Select::None;
             }
             Button::C => {
+                self.sel.1 = Select::None;
                 if self.len < 4 {
                     self.len += 1;
                 }

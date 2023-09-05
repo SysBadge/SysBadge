@@ -27,6 +27,7 @@ uc8151 = { version = "0.2", features = [ "graphics" ] }
 
 fugit = "0.3.7"
 
+static_cell = "1.2.0"
 # Embassy
 embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", features = ["defmt", "unstable-traits", "nightly", "unstable-pac", "time-driver", "critical-section-impl"] }
 embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", features = ["defmt"] }

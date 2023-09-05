@@ -2315,6 +2315,7 @@ dependencies = [
  "fugit",
  "panic-probe",
  "pimoroni_badger2040",
+ "static_cell",
  "sysbadge",
  "uc8151",
 ]
