@@ -16,6 +16,7 @@ use embedded_graphics::text::{Alignment, Text};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 pub mod system;
+pub mod usb;
 
 pub type DrawResult<D, T = ()> = Result<T, <D as DrawTarget>::Error>;
 
@@ -72,6 +73,23 @@ pub enum Button {
     Up,
     Down,
     USER,
+}
+
+impl TryFrom<u8> for Button {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            x if x == Button::A as u8 => Ok(Button::A),
+            x if x == Button::B as u8 => Ok(Button::B),
+            x if x == Button::C as u8 => Ok(Button::C),
+            x if x == Button::D as u8 => Ok(Button::D),
+            x if x == Button::Up as u8 => Ok(Button::Up),
+            x if x == Button::Down as u8 => Ok(Button::Down),
+            x if x == Button::USER as u8 => Ok(Button::USER),
+            _ => Err(()),
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Default)]

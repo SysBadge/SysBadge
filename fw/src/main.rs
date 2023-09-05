@@ -3,6 +3,8 @@
 #![feature(type_alias_impl_trait)]
 #![feature(allocator_api, alloc_error_handler)]
 
+mod usb;
+
 use alloc_cortex_m::CortexMHeap;
 use defmt::*;
 use embassy_time::{Duration, Timer};
@@ -29,12 +31,21 @@ use uc8151::Uc8151;
 
 use sysbadge::{Button, Sysbadge};
 
+pub enum UsbControl {
+    GetMemberCount,
+}
+pub enum UsbResponse {
+    MemberCount(u16),
+}
+
 static mut CORE1_STACK: embassy_rp::multicore::Stack<4096> = embassy_rp::multicore::Stack::new();
 static EXECUTOR0: static_cell::StaticCell<embassy_executor::Executor> =
     static_cell::StaticCell::new();
 static EXECUTOR1: static_cell::StaticCell<embassy_executor::Executor> =
     static_cell::StaticCell::new();
 static CHANNEL: Channel<CriticalSectionRawMutex, Button, 1> = Channel::new();
+static USB: Channel<CriticalSectionRawMutex, UsbControl, 1> = Channel::new();
+static USB_RESP: Channel<CriticalSectionRawMutex, UsbResponse, 1> = Channel::new();
 
 type SysbadgeUc8151<'a> = Sysbadge<
     'a,
@@ -106,6 +117,7 @@ async fn core0_init(spawner: Spawner) {
     spawner.spawn(button_task_c()).unwrap();
     spawner.spawn(button_task_up()).unwrap();
     spawner.spawn(button_task_down()).unwrap();
+    spawner.spawn(usb::init(spawner)).unwrap();
 }
 
 #[embassy_executor::task]

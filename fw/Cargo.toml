@@ -34,4 +34,5 @@ embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", features = [
 embassy-futures = { git = "https://github.com/embassy-rs/embassy.git" }
 embassy-time = { git = "https://github.com/embassy-rs/embassy.git", features = ["nightly", "unstable-traits", "defmt", "defmt-timestamp-uptime"] }
 embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", features = ["nightly", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt", "integrated-timers"] }
+embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", features = ["defmt"] }
 
