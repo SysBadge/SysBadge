@@ -23,6 +23,7 @@ crc16 = "0.4.0"
 # Display
 embedded-graphics = "0.8"
 uc8151 = { version = "0.2" }
+profont = "0.7.0"
 
 wasm-bindgen = { version = "=0.2.87", optional = true }
 

@@ -160,20 +160,25 @@ where
         }
     }
 
-    fn pronoun<D>(&self, target: &mut D) -> DrawResult<D>
+    fn pronoun<D>(&self, target: &mut D) -> DrawResult<D, Point>
     where
         D: DrawTarget,
         <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
     {
         let (pos, align, font) = match self.bounds.size.height {
             x if x > 100 => (
-                Point::new(5, (self.bounds.size.height - 15) as i32),
+                Point::new(5, (self.bounds.size.height - 20) as i32),
                 Alignment::Left,
                 &embedded_graphics::mono_font::ascii::FONT_10X20,
             ),
-            x if x > 40 => (
-                Point::new(5, 30),
+            x if x > 50 => (
+                Point::new(5, (self.bounds.size.height - 15) as i32),
                 Alignment::Left,
+                &embedded_graphics::mono_font::ascii::FONT_8X13,
+            ),
+            x if x > 40 => (
+                Point::new((self.bounds.size.width - 5) as i32, 15),
+                Alignment::Right,
                 &embedded_graphics::mono_font::ascii::FONT_8X13,
             ),
             _ => (
@@ -189,23 +194,26 @@ where
             MonoTextStyle::new(font, super::BINARY_COLOR_ON.into()),
             align,
         )
-        .draw(target)?;
-
-        Ok(())
+        .draw(target)
     }
 
-    fn name<D>(&self, target: &mut D) -> DrawResult<D>
+    fn name<D>(&self, target: &mut D) -> DrawResult<D, Point>
     where
         D: DrawTarget,
         <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
     {
         let (pos, font) = match self.bounds.size.height {
             x if x > 40 => (
-                Point::new(5, 15),
-                &embedded_graphics::mono_font::ascii::FONT_10X20,
+                Point::new(5, 25),
+                //&embedded_graphics::mono_font::ascii::FONT_10X20,
+                &profont::PROFONT_24_POINT,
+            ),
+            x if x > 20 => (
+                Point::new(5, 20),
+                &embedded_graphics::mono_font::ascii::FONT_8X13,
             ),
             _ => (
-                Point::new(5, 15),
+                Point::new(5, 20),
                 &embedded_graphics::mono_font::ascii::FONT_6X10,
             ),
         };
@@ -216,9 +224,7 @@ where
             MonoTextStyle::new(font, super::BINARY_COLOR_ON.into()),
             Alignment::Left,
         )
-        .draw(target)?;
-
-        Ok(())
+        .draw(target)
     }
 }
 
