@@ -272,7 +272,7 @@
           shell = { lib, stdenv, mkShell, fenix, rust-analyzer-nightly, gdb
             , cargo-watch, cargo-edit, cargo-outdated, cargo-asm, libiconv
             , flip-link, probe-run, SDL2, just, yarn, wasm-bindgen-cli
-            , elf2uf2-rs, libusb1 }:
+            , elf2uf2-rs, libusb1, gtk4, glib, gdk-pixbuf, pkg-config }:
             mkShell {
               nativeBuildInputs = [
                 (fenixToolchain fenix)
@@ -287,6 +287,10 @@
                 elf2uf2-rs
                 SDL2
                 libusb1
+                gtk4
+                glib
+                gdk-pixbuf
+                pkg-config
 
                 yarn
                 wasm-bindgen-cli

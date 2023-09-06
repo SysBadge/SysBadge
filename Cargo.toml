@@ -32,7 +32,8 @@ members = [
     "./fw",
     "./simulator",
     "./web",
-    "./usb"
+    "./usb",
+    "./gtk"
 ]
 
 # cargo build/run
