@@ -3,6 +3,8 @@
 #![feature(type_alias_impl_trait)]
 #![feature(allocator_api, alloc_error_handler)]
 
+mod usb;
+
 use alloc_cortex_m::CortexMHeap;
 use defmt::*;
 use embassy_time::{Duration, Timer};
@@ -23,11 +25,19 @@ use embassy_rp::spi::Spi;
 use embassy_rp::{peripherals, Peripherals};
 use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
 use embassy_sync::channel::Channel;
+use embassy_sync::mutex::Mutex;
 use panic_probe as _;
 
 use uc8151::Uc8151;
 
 use sysbadge::{Button, Sysbadge};
+
+pub enum UsbControl {
+    GetMemberCount,
+}
+pub enum UsbResponse {
+    MemberCount(u16),
+}
 
 static mut CORE1_STACK: embassy_rp::multicore::Stack<4096> = embassy_rp::multicore::Stack::new();
 static EXECUTOR0: static_cell::StaticCell<embassy_executor::Executor> =
@@ -35,6 +45,12 @@ static EXECUTOR0: static_cell::StaticCell<embassy_executor::Executor> =
 static EXECUTOR1: static_cell::StaticCell<embassy_executor::Executor> =
     static_cell::StaticCell::new();
 static CHANNEL: Channel<CriticalSectionRawMutex, Button, 1> = Channel::new();
+static USB: Channel<CriticalSectionRawMutex, UsbControl, 1> = Channel::new();
+static USB_RESP: Channel<CriticalSectionRawMutex, UsbResponse, 1> = Channel::new();
+
+//static BADGE: Mutex<CriticalSectionRawMutex, Sysbadge<'static>> = Mut
+static BADGE: static_cell::StaticCell<Mutex<CriticalSectionRawMutex, SysbadgeUc8151>> =
+    static_cell::StaticCell::new();
 
 type SysbadgeUc8151<'a> = Sysbadge<
     'a,
@@ -53,13 +69,15 @@ fn main() -> ! {
 
     let p = embassy_rp::init(Default::default());
     let badge = init(p);
+    let badge = BADGE.init(Mutex::new(badge));
+    let badge: &Mutex<_, _> = badge;
 
     embassy_rp::multicore::spawn_core1(
         unsafe { CORE1::steal() },
         unsafe { &mut CORE1_STACK },
         move || {
             let executor1 = EXECUTOR1.init(embassy_executor::Executor::new());
-            executor1.run(|spawner| unwrap!(spawner.spawn(core0_init(spawner))));
+            executor1.run(|spawner| unwrap!(spawner.spawn(core0_init(spawner, badge))));
         },
     );
 
@@ -98,7 +116,10 @@ fn init(p: Peripherals) -> SysbadgeUc8151<'static> {
 }
 
 #[embassy_executor::task]
-async fn core0_init(spawner: Spawner) {
+async fn core0_init(
+    spawner: Spawner,
+    badge: &'static Mutex<CriticalSectionRawMutex, SysbadgeUc8151<'static>>,
+) {
     info!("Starting tasks on core 0");
 
     spawner.spawn(button_task_a()).unwrap();
@@ -106,10 +127,14 @@ async fn core0_init(spawner: Spawner) {
     spawner.spawn(button_task_c()).unwrap();
     spawner.spawn(button_task_up()).unwrap();
     spawner.spawn(button_task_down()).unwrap();
+    spawner.spawn(usb::init(spawner, badge)).unwrap();
 }
 
 #[embassy_executor::task]
-async fn core1_init(spawner: Spawner, badge: SysbadgeUc8151<'static>) {
+async fn core1_init(
+    spawner: Spawner,
+    badge: &'static Mutex<CriticalSectionRawMutex, SysbadgeUc8151<'static>>,
+) {
     info!("Starting tasks on core 1");
 
     spawner.spawn(update_redraw_timer_task(badge)).unwrap();
@@ -117,11 +142,16 @@ async fn core1_init(spawner: Spawner, badge: SysbadgeUc8151<'static>) {
 
 const UPDATE_REDRAW_TIMER_TASK_DELAY: u64 = 500;
 #[embassy_executor::task]
-async fn update_redraw_timer_task(mut badge: SysbadgeUc8151<'static>) {
+async fn update_redraw_timer_task(
+    mut badge: &'static Mutex<CriticalSectionRawMutex, SysbadgeUc8151<'static>>,
+) {
     'outer: loop {
         let button = CHANNEL.receive().await;
         //let badge = unsafe { unwrap!(SYSBADGE.as_mut()) };
-        badge.press(button);
+        {
+            let mut badge = badge.lock().await;
+            badge.press(button);
+        }
         loop {
             let ret = select(
                 CHANNEL.receive(),
@@ -130,9 +160,11 @@ async fn update_redraw_timer_task(mut badge: SysbadgeUc8151<'static>) {
             .await;
             match ret {
                 embassy_futures::select::Either::First(btn) => {
+                    let mut badge = badge.lock().await;
                     badge.press(btn);
                 }
                 embassy_futures::select::Either::Second(_) => {
+                    let mut badge = badge.lock().await;
                     unwrap!(badge.draw());
                     unwrap!(badge.display.update(), "Failed to update display");
                     continue 'outer;

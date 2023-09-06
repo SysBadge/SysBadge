@@ -31,7 +31,8 @@ wasm-bindgen = { version = "=0.2.87", optional = true }
 members = [
     "./fw",
     "./simulator",
-    "./web"
+    "./web",
+    "./usb"
 ]
 
 # cargo build/run

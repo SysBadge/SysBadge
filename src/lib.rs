@@ -5,6 +5,7 @@ extern crate alloc;
 
 use crate::system::{DrawableMember, SystemUf2};
 use core::hint::unreachable_unchecked;
+use core::ptr;
 use embedded_graphics::geometry::AnchorY;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
@@ -16,11 +17,16 @@ use embedded_graphics::text::{Alignment, Text};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 pub mod system;
+pub mod usb;
 
 pub type DrawResult<D, T = ()> = Result<T, <D as DrawTarget>::Error>;
 
 pub const HEIGHT: u32 = uc8151::HEIGHT;
 pub const WIDTH: u32 = uc8151::WIDTH;
+
+pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+pub const MATRIX: &'static str = env!("SYSBADGE_MATRIX", "missing matrix configuration");
+pub const WEB: &'static str = env!("SYSBADGE_WEB", "missing web configuration");
 
 #[cfg(not(feature = "invert"))]
 const BINARY_COLOR_OFF: BinaryColor = BinaryColor::Off;
@@ -74,6 +80,23 @@ pub enum Button {
     USER,
 }
 
+impl TryFrom<u8> for Button {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            x if x == Button::A as u8 => Ok(Button::A),
+            x if x == Button::B as u8 => Ok(Button::B),
+            x if x == Button::C as u8 => Ok(Button::C),
+            x if x == Button::D as u8 => Ok(Button::D),
+            x if x == Button::Up as u8 => Ok(Button::Up),
+            x if x == Button::Down as u8 => Ok(Button::Down),
+            x if x == Button::USER as u8 => Ok(Button::USER),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Default)]
 #[repr(u8)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -96,16 +119,16 @@ impl Select {
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-struct MemberCell {
-    id: u16,
+pub struct MemberCell {
+    pub id: u16,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-struct CurrentMembers {
-    members: [MemberCell; 4],
-    sel: (u8, Select),
-    len: u8,
+pub struct CurrentMembers {
+    pub members: [MemberCell; 4],
+    pub sel: (u8, Select),
+    pub len: u8,
 }
 
 impl core::default::Default for CurrentMembers {
@@ -280,7 +303,7 @@ impl CurrentMembers {
 #[derive(Eq, PartialEq, Debug)]
 #[repr(u8)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-enum CurrentMenu {
+pub enum CurrentMenu {
     SystemName,
     Version,
     Member(CurrentMembers),
@@ -302,6 +325,16 @@ impl CurrentMenu {
                 //defmt::warn!("Unhandled button press: {:?}", button)
             }
         }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        let ptr = self as *const Self as *const u8;
+        unsafe { core::slice::from_raw_parts(ptr, core::mem::size_of::<Self>()) }
+    }
+
+    pub fn from_bytes(slice: &[u8]) -> Self {
+        let ptr = slice.as_ptr() as *const Self;
+        unsafe { ptr::read(ptr) }
     }
 }
 
@@ -379,6 +412,14 @@ where
             CurrentMenu::Version => self.draw_version(),
             CurrentMenu::Member(ref cur) => cur.draw(self.system, &mut self.display),
         }
+    }
+
+    pub fn current(&self) -> &CurrentMenu {
+        &self.current
+    }
+
+    pub fn set_current(&mut self, state: CurrentMenu) {
+        self.current = state
     }
 
     fn hash(&self) -> u16 {

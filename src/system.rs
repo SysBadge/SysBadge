@@ -1,8 +1,5 @@
 use alloc::format;
-use alloc::string::ToString;
 use core::alloc::Layout;
-use core::ffi::CStr;
-use core::mem::MaybeUninit;
 use core::ptr;
 
 /// Flash representaion of a member
@@ -127,6 +124,9 @@ impl SystemUf2 {
         self.len() == 0
     }
 }
+
+unsafe impl Send for SystemUf2 {}
+unsafe impl Sync for SystemUf2 {}
 
 use crate::DrawResult;
 use embedded_graphics::draw_target::DrawTarget;
