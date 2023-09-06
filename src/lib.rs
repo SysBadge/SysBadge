@@ -24,6 +24,10 @@ pub type DrawResult<D, T = ()> = Result<T, <D as DrawTarget>::Error>;
 pub const HEIGHT: u32 = uc8151::HEIGHT;
 pub const WIDTH: u32 = uc8151::WIDTH;
 
+pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+pub const MATRIX: &'static str = env!("SYSBADGE_MATRIX", "missing matrix configuration");
+pub const WEB: &'static str = env!("SYSBADGE_WEB", "missing web configuration");
+
 #[cfg(not(feature = "invert"))]
 const BINARY_COLOR_OFF: BinaryColor = BinaryColor::Off;
 
@@ -116,15 +120,15 @@ impl Select {
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct MemberCell {
-    id: u16,
+    pub id: u16,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CurrentMembers {
-    members: [MemberCell; 4],
-    sel: (u8, Select),
-    len: u8,
+    pub members: [MemberCell; 4],
+    pub sel: (u8, Select),
+    pub len: u8,
 }
 
 impl core::default::Default for CurrentMembers {

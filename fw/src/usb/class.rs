@@ -220,6 +220,30 @@ impl Handler for Control {
 
                 Some(InResponse::Accepted(&buf[..len]))
             }
+            Ok(sysusb::Request::GetVersion)
+                if req.value == (sysusb::VersionType::SemVer as u16)
+                    && req.length >= sysbadge::VERSION.len() as u16 =>
+            {
+                debug!("Sending version");
+                buf[..sysbadge::VERSION.len()].copy_from_slice(sysbadge::VERSION.as_bytes());
+                Some(InResponse::Accepted(&buf[..sysbadge::VERSION.len()]))
+            }
+            Ok(sysusb::Request::GetVersion)
+                if req.value == (sysusb::VersionType::Matrix as u16)
+                    && req.length >= sysbadge::MATRIX.len() as u16 =>
+            {
+                debug!("Sending matrix");
+                buf[..sysbadge::MATRIX.len()].copy_from_slice(sysbadge::MATRIX.as_bytes());
+                Some(InResponse::Accepted(&buf[..sysbadge::MATRIX.len()]))
+            }
+            Ok(sysusb::Request::GetVersion)
+                if req.value == (sysusb::VersionType::Web as u16)
+                    && req.length >= sysbadge::WEB.len() as u16 =>
+            {
+                debug!("Sending web");
+                buf[..sysbadge::WEB.len()].copy_from_slice(sysbadge::WEB.as_bytes());
+                Some(InResponse::Accepted(&buf[..sysbadge::WEB.len()]))
+            }
             _ => Some(InResponse::Rejected),
         }
     }

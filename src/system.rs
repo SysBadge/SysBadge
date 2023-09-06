@@ -1,8 +1,5 @@
 use alloc::format;
-use alloc::string::ToString;
 use core::alloc::Layout;
-use core::ffi::CStr;
-use core::mem::MaybeUninit;
 use core::ptr;
 
 /// Flash representaion of a member
