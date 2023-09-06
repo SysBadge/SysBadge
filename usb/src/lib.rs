@@ -1,4 +1,9 @@
-use rusb::{constants, Device, DeviceDescriptor, DeviceHandle, UsbContext};
+use log::info;
+use rusb::{
+    constants, Device, DeviceDescriptor, DeviceHandle, Hotplug, HotplugBuilder, Registration,
+    UsbContext,
+};
+use std::sync::{Arc, Mutex};
 
 pub use rusb;
 pub mod err;
@@ -9,13 +14,22 @@ use sysbadge::CurrentMenu;
 pub struct UsbSysbadge<T: UsbContext> {
     context: T,
     handle: DeviceHandle<T>,
-    device: Device<T>,
-    descriptor: DeviceDescriptor,
     timeout: std::time::Duration,
 }
 
 impl<T: UsbContext> UsbSysbadge<T> {
-    pub fn open(mut context: T) -> Result<Self> {
+    pub fn open(mut handle: DeviceHandle<T>) -> Result<Self> {
+        let _ = handle.set_auto_detach_kernel_driver(true);
+        handle.set_active_configuration(0)?;
+
+        Ok(Self {
+            context: handle.context().clone(),
+            handle,
+            timeout: std::time::Duration::from_secs(1),
+        })
+    }
+
+    pub fn find(mut context: T) -> Result<Self> {
         let (device, descriptor, mut handle) =
             Self::open_device(&mut context, sysbadge::usb::VID, sysbadge::usb::PID)?
                 .ok_or(Error::NoDevice)?;
@@ -25,8 +39,6 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Ok(Self {
             context,
             handle,
-            device,
-            descriptor,
             timeout: std::time::Duration::from_secs(1),
         })
     }
