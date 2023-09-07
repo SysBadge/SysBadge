@@ -9,7 +9,7 @@ pub use rusb;
 pub mod err;
 
 pub use err::{Error, Result};
-use sysbadge::usb::VersionType;
+use sysbadge::usb::{BootSel, VersionType};
 use sysbadge::CurrentMenu;
 
 pub struct UsbSysbadge<T: UsbContext> {
@@ -189,6 +189,20 @@ impl<T: UsbContext> UsbSysbadge<T> {
     pub fn get_version_string(&mut self, version: VersionType) -> Result<String> {
         let buf = self.get_version(version)?;
         Ok(String::from_utf8(buf.to_vec())?)
+    }
+
+    pub fn reboot(&mut self, bootsel: BootSel) -> Result<()> {
+        self.handle.write_control(
+            constants::LIBUSB_ENDPOINT_OUT
+                | constants::LIBUSB_REQUEST_TYPE_VENDOR
+                | constants::LIBUSB_RECIPIENT_INTERFACE,
+            sysbadge::usb::Request::Reboot as u8,
+            bootsel as u16,
+            0,
+            &[0; 0],
+            self.timeout,
+        )?;
+        Ok(())
     }
 
     fn open_device(

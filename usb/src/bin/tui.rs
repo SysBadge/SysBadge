@@ -1,7 +1,7 @@
 #![feature(if_let_guard)]
 
 use crossterm::event;
-use crossterm::event::{Event, KeyCode, KeyEvent};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use log::info;
 use ratatui::prelude::*;
@@ -13,6 +13,7 @@ use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use sysbadge::usb::BootSel;
 use sysbadge::{Button, CurrentMenu, Select};
 use sysbadge_usb::UsbSysbadge;
 
@@ -252,6 +253,9 @@ impl<U: UsbContext> App<U> {
             KeyCode::F(1) if let Current::Show { state } = &self.current => {
                 let _ = self.badge.set_state(state);
                 let _ = self.badge.update_display();
+            }
+            KeyCode::Char('R') if key.modifiers == KeyModifiers::SHIFT => {
+                let _ = self.badge.reboot(BootSel::Bootloader);
             }
             _ => {}
         }

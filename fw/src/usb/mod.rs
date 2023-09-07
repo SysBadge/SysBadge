@@ -20,6 +20,7 @@ embassy_rp::bind_interrupts!(struct Irqs {
 pub async fn init(
     spawner: Spawner,
     badge: &'static Mutex<CriticalSectionRawMutex, crate::SysbadgeUc8151<'static>>,
+    flash: &'static crate::RpFlashMutex<'static>,
 ) {
     let driver = Driver::new(unsafe { embassy_rp::peripherals::USB::steal() }, Irqs);
 
@@ -43,7 +44,7 @@ pub async fn init(
     let mut bos_descriptor = [0; 256];
     let mut control_buf = [0; 64];
 
-    let mut state = class::State::new(badge);
+    let mut state = class::State::new(badge, flash);
 
     let mut builder = Builder::new(
         driver,
