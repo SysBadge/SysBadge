@@ -25,7 +25,7 @@ pub async fn init(
 
     // Create config
     let mut config = Config::new(sysusb::VID, sysusb::PID);
-    config.manufacturer = Some("Kloenk");
+    config.manufacturer = Some("nyantec GmbH");
     config.product = Some("Sysbadge");
     config.serial_number = Some("12345678");
     config.max_power = 100;
