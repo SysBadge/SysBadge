@@ -1,7 +1,7 @@
 //! type enums used for USB controll
 
-pub const VID: u16 = 0xc0de;
-pub const PID: u16 = 0x1bad;
+pub const VID: u16 = 0x33ff;
+pub const PID: u16 = 0x4025;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
