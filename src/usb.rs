@@ -43,6 +43,7 @@ impl TryFrom<u8> for Request {
 pub enum VersionType {
     Jedec = 0x00,
     UniqueId,
+    SerialNumber,
     SemVer = 0x10,
     Matrix,
     Web,
@@ -55,6 +56,7 @@ impl TryFrom<u8> for VersionType {
         match value {
             x if x == (VersionType::UniqueId as u8) => Ok(VersionType::UniqueId),
             x if x == (VersionType::Jedec as u8) => Ok(VersionType::Jedec),
+            x if x == (VersionType::SerialNumber as u8) => Ok(VersionType::SerialNumber),
             x if x == (VersionType::SemVer as u8) => Ok(VersionType::SemVer),
             x if x == (VersionType::Matrix as u8) => Ok(VersionType::Matrix),
             x if x == (VersionType::Web as u8) => Ok(VersionType::Web),

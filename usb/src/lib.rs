@@ -12,6 +12,9 @@ pub use err::{Error, Result};
 use sysbadge::usb::{BootSel, VersionType};
 use sysbadge::CurrentMenu;
 
+pub const VID: u16 = sysbadge::usb::VID;
+pub const PID: u16 = sysbadge::usb::PID;
+
 pub struct UsbSysbadge<T: UsbContext> {
     context: T,
     handle: DeviceHandle<T>,
@@ -34,14 +37,8 @@ impl<T: UsbContext> UsbSysbadge<T> {
         let (device, descriptor, mut handle) =
             Self::open_device(&mut context, sysbadge::usb::VID, sysbadge::usb::PID)?
                 .ok_or(Error::NoDevice)?;
-        let _ = handle.set_auto_detach_kernel_driver(true);
-        handle.set_active_configuration(0)?;
 
-        Ok(Self {
-            context,
-            handle,
-            timeout: std::time::Duration::from_secs(1),
-        })
+        Self::open(handle)
     }
 
     pub fn press(&mut self, button: sysbadge::Button) -> Result {
@@ -191,6 +188,12 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Ok(String::from_utf8(buf.to_vec())?)
     }
 
+    pub fn get_unique_id(&mut self) -> Result<u64> {
+        let buf = self.get_version(VersionType::UniqueId)?;
+        let id = u64::from_le_bytes(buf[..8].as_ref().try_into().unwrap());
+        Ok(id)
+    }
+
     pub fn reboot(&mut self, bootsel: BootSel) -> Result<()> {
         self.handle.write_control(
             constants::LIBUSB_ENDPOINT_OUT
@@ -203,6 +206,14 @@ impl<T: UsbContext> UsbSysbadge<T> {
             self.timeout,
         )?;
         Ok(())
+    }
+
+    pub fn handle(&self) -> &DeviceHandle<T> {
+        &self.handle
+    }
+
+    pub fn handle_mut(&mut self) -> &mut DeviceHandle<T> {
+        &mut self.handle
     }
 
     fn open_device(

@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.32", features = [ "time" ]}
 
+anyhow = "1"
 sysbadge-usb = { path = "../usb" }
 
 relm4 = "0.6.0"

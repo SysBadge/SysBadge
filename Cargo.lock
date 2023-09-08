@@ -1509,6 +1509,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "443144c8cdadd93ebf52ddb4056d257f5b52c04d3c804e657d19eb73fc33668b"
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "http"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3011,6 +3017,7 @@ dependencies = [
  "embassy-usb",
  "embedded-hal 0.2.7",
  "fugit",
+ "hex",
  "panic-probe",
  "pimoroni_badger2040",
  "static_cell",
@@ -3022,6 +3029,7 @@ dependencies = [
 name = "sysbadge-gtk"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "log",
  "pretty_env_logger",
  "relm4",

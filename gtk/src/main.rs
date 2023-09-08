@@ -1,69 +1,96 @@
+mod components;
+mod usb;
+
+use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use std::time::Duration;
 
+use crate::components::{HeaderModel, HeaderOutput};
+use anyhow::{Context, Result};
 use gtk::prelude::*;
+use log::*;
+use relm4::component::AsyncController;
 use relm4::{
-    component::{AsyncComponent, AsyncComponentParts, AsyncComponentSender},
+    component::{
+        AsyncComponent, AsyncComponentController, AsyncComponentParts, AsyncComponentSender,
+    },
     gtk,
     loading_widgets::LoadingWidgets,
-    view, RelmApp, RelmWidgetExt,
+    view, Controller, RelmApp, RelmWidgetExt,
 };
-
-#[tracker::track]
-struct App {
-    #[no_eq]
-    badge: Option<u8>,
-    counter: u8,
-}
+use sysbadge_usb::rusb::{DeviceHandle, UsbContext};
+use sysbadge_usb::{rusb, UsbSysbadge};
 
 #[derive(Debug)]
+enum AppMode {
+    View,
+    Edit,
+    Export,
+}
+
+pub(crate) struct App {
+    badges: HashMap<String, UsbSysbadge<rusb::Context>>,
+    header: AsyncController<HeaderModel>,
+    tab: AppMode,
+}
+
 enum Msg {
-    Increment,
-    Decrement,
+    AddBadge(DeviceHandle<rusb::Context>),
+    RemoveBadge(rusb::Device<rusb::Context>),
+    SetMode(AppMode),
+}
+
+impl Debug for Msg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Msg::AddBadge(_) => write!(f, "AddBadge"),
+            Msg::RemoveBadge(_) => write!(f, "RemoveBadge"),
+            Msg::SetMode(m) => write!(f, "SetMode: {:?}", m),
+        }
+    }
+}
+
+impl App {
+    fn add_badge(&mut self, handle: DeviceHandle<rusb::Context>) -> Result<()> {
+        let mut badge = UsbSysbadge::open(handle)?;
+
+        let name = badge.system_name()?;
+        info!("Got new badge for {}", name);
+
+        self.badges.insert(name, badge);
+
+        Ok(())
+    }
+
+    fn remove_badge(&mut self, handle: rusb::Device<rusb::Context>) -> Result<()> {
+        self.badges
+            .retain(|_, badge| badge.handle().device().address() != handle.address());
+        info!("Removed badge");
+        trace!("Badges: {:?}", self.badges.keys());
+        Ok(())
+    }
 }
 
 #[relm4::component(async)]
 impl AsyncComponent for App {
-    type Init = u8;
+    type Init = ();
     type Input = Msg;
     type Output = ();
     type CommandOutput = ();
 
     view! {
-        gtk::ApplicationWindow {
-            if model.badge.is_some() {
-                gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 5,
-                    set_margin_all: 5,
+        main_window = gtk::Window {
+            set_default_width: 500,
+            set_default_height: 250,
+            set_titlebar: Some(model.header.widget()),
 
-                    gtk::Button {
-                        set_label: "Increment",
-                        connect_clicked => Msg::Increment,
-                    },
-
-                    gtk::Button {
-                        set_label: "Decrement",
-                        connect_clicked => Msg::Decrement,
-                    },
-
-                    gtk::Label {
-                        #[watch]
-                        set_label: &format!("Counter: {}", model.counter),
-                        set_margin_all: 5,
-                    }
-                }
-            } else {
-                gtk::Box {
-                    gtk::Label {
-                        set_label: "Please connect Sysbadge...",
-                        set_margin_all: 5,
-                    },
-
-                    gtk::Spinner {
-                        start: (),
-                        set_halign: gtk::Align::Center,
-                    }
-                }
+            gtk::Label {
+                #[watch]
+                set_label: &format!("Placeholder for {:?}", model.tab),
+            },
+            connect_close_request[sender] => move |_| {
+                // TODO: sender.input(AppMsg::CloseRequest);
+                gtk::Inhibit(true)
             }
         }
     }
@@ -92,15 +119,25 @@ impl AsyncComponent for App {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        let header: AsyncController<HeaderModel> =
+            HeaderModel::builder()
+                .launch(())
+                .forward(sender.input_sender(), |msg| match msg {
+                    HeaderOutput::View => Msg::SetMode(AppMode::View),
+                    HeaderOutput::Edit => Msg::SetMode(AppMode::Edit),
+                    HeaderOutput::Export => Msg::SetMode(AppMode::Export),
+                });
 
         let model = App {
-            badge: None,
-            counter,
-            tracker: 0,
+            badges: HashMap::new(),
+            tab: AppMode::View,
+            header,
         };
 
-        std::thread::spawn(|| sender.send);
+        let usb_sender = sender.clone();
+        std::thread::spawn(move || {
+            usb::run(usb_sender);
+        });
 
         // Insert the code generation of the view! macro here
         let widgets = view_output!();
@@ -115,11 +152,19 @@ impl AsyncComponent for App {
         _root: &Self::Root,
     ) {
         match msg {
-            Msg::Increment => {
-                self.counter = self.counter.wrapping_add(1);
+            Msg::AddBadge(handle) => {
+                if let Err(e) = self.add_badge(handle) {
+                    error!("Failed to add badge: {}", e);
+                }
             }
-            Msg::Decrement => {
-                self.counter = self.counter.wrapping_sub(1);
+            Msg::RemoveBadge(handle) => {
+                if let Err(e) = self.remove_badge(handle) {
+                    error!("Failed to remove badge: {}", e);
+                }
+            }
+            Msg::SetMode(m) => {
+                self.tab = m;
+                info!("Set mode to {:?}", self.tab);
             }
         }
     }
@@ -129,5 +174,5 @@ fn main() {
     pretty_env_logger::init();
 
     let app = RelmApp::new("eu.kloenk.sysbadge.gtk");
-    app.run_async::<App>(0);
+    app.run_async::<App>(());
 }
