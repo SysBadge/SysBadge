@@ -2,13 +2,10 @@ mod class;
 
 use defmt::*;
 use embassy_executor::Spawner;
-use embassy_futures::yield_now;
-use embassy_rp::usb::{Driver, Instance, InterruptHandler};
+use embassy_rp::usb::{Driver, InterruptHandler};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
-use embassy_usb::control::{InResponse, Recipient, Request, RequestType};
-use embassy_usb::types::InterfaceNumber;
-use embassy_usb::{Builder, Config, Handler};
+use embassy_usb::{Builder, Config};
 
 use sysbadge::usb as sysusb;
 
@@ -18,7 +15,7 @@ embassy_rp::bind_interrupts!(struct Irqs {
 
 #[embassy_executor::task]
 pub async fn init(
-    spawner: Spawner,
+    _spawner: Spawner,
     badge: &'static Mutex<CriticalSectionRawMutex, crate::SysbadgeUc8151<'static>>,
     flash: &'static crate::RpFlashMutex<'static>,
 ) {
@@ -27,9 +24,9 @@ pub async fn init(
     let serial = {
         let mut buf = [0; 8];
         let mut flash = flash.lock().await;
-        defmt::unwrap!(flash.blocking_unique_id(&mut buf));
+        unwrap!(flash.blocking_unique_id(&mut buf));
         let mut out = [0; 16];
-        defmt::unwrap!(
+        unwrap!(
             hex::encode_to_slice(&buf, &mut out),
             "Failed to encode serial"
         );
@@ -68,14 +65,13 @@ pub async fn init(
         &mut control_buf,
     );
 
-    //let mut class = CdcAcmClass::new(&mut builder, &mut state, 64);
-    let mut class = class::SysbadgeClass::new(&mut builder, &mut state, 64);
+    let _class = class::SysbadgeClass::new(&mut builder, &mut state, 64);
 
     let mut usb = builder.build();
 
     let usb_fut = usb.run();
 
-    let tasK_fut = async {
+    /*let task_fut = async {
         /*loop {
             class.wait_connection().await;
             info!("Connected");
@@ -85,7 +81,8 @@ pub async fn init(
         }*/
     };
 
-    embassy_futures::join::join(usb_fut, tasK_fut).await;
+    embassy_futures::join::join(usb_fut, task_fut).await;*/
+    usb_fut.await;
 }
 
 /*

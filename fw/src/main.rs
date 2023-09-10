@@ -24,7 +24,7 @@ use embassy_rp::gpio::{Input, Level, Output, Pull};
 use embassy_rp::peripherals::CORE1;
 use embassy_rp::spi::Spi;
 use embassy_rp::{peripherals, Peripherals};
-use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
 use panic_probe as _;
@@ -48,10 +48,7 @@ static EXECUTOR0: static_cell::StaticCell<embassy_executor::Executor> =
 static EXECUTOR1: static_cell::StaticCell<embassy_executor::Executor> =
     static_cell::StaticCell::new();
 static CHANNEL: Channel<CriticalSectionRawMutex, Button, 1> = Channel::new();
-static USB: Channel<CriticalSectionRawMutex, UsbControl, 1> = Channel::new();
-static USB_RESP: Channel<CriticalSectionRawMutex, UsbResponse, 1> = Channel::new();
 
-//static BADGE: Mutex<CriticalSectionRawMutex, Sysbadge<'static>> = Mut
 static BADGE: static_cell::StaticCell<Mutex<CriticalSectionRawMutex, SysbadgeUc8151>> =
     static_cell::StaticCell::new();
 
@@ -162,7 +159,7 @@ async fn core1_init(
 const UPDATE_REDRAW_TIMER_TASK_DELAY: u64 = 500;
 #[embassy_executor::task]
 async fn update_redraw_timer_task(
-    mut badge: &'static Mutex<CriticalSectionRawMutex, SysbadgeUc8151<'static>>,
+    badge: &'static Mutex<CriticalSectionRawMutex, SysbadgeUc8151<'static>>,
 ) {
     'outer: loop {
         let button = CHANNEL.receive().await;

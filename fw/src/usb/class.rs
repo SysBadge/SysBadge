@@ -1,7 +1,6 @@
 use core::mem::MaybeUninit;
 use defmt::*;
 use embassy_futures::block_on;
-use embassy_rp::flash::Flash;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_usb::control::{InResponse, OutResponse, Recipient, Request, RequestType};
@@ -9,9 +8,8 @@ use embassy_usb::driver::Driver;
 use embassy_usb::types::InterfaceNumber;
 use embassy_usb::{Builder, Handler};
 
-use crate::{RpFlashMutex, UsbControl, UsbResponse, USB_RESP};
+use crate::RpFlashMutex;
 use sysbadge::usb::BootSel::Application;
-use sysbadge::usb::VersionType;
 use sysbadge::{badge::CurrentMenu, usb as sysusb};
 
 pub struct State {
@@ -33,9 +31,11 @@ impl State {
     }
 }
 
+#[allow(dead_code)]
 pub struct SysbadgeClass<'d, D: Driver<'d>> {
     //read_ep: D::EndpointIn,
     //write_ep: D::EndpointOut,
+    comm_ep: D::EndpointIn,
     _d: core::marker::PhantomData<&'d D>,
     //control: Control,
 }
@@ -51,7 +51,7 @@ impl<'d, D: Driver<'d>> SysbadgeClass<'d, D> {
         let comm_if = iface.interface_number();
         let mut alt = iface.alt_setting(0x0f, 0x00, 0x00, None);
 
-        let comm_ep = alt.endpoint_interrupt_in(8, 255);
+        let comm_ep = alt.endpoint_interrupt_in(max_packet_size, 255);
 
         drop(func);
 
@@ -63,6 +63,7 @@ impl<'d, D: Driver<'d>> SysbadgeClass<'d, D> {
         builder.handler(control);
 
         Self {
+            comm_ep,
             _d: core::marker::PhantomData,
         }
     }
@@ -104,7 +105,7 @@ impl Handler for Control {
 
                 let state = CurrentMenu::from_bytes(data);
 
-                let state = block_on(async {
+                block_on(async {
                     let mut badge = self.badge.lock().await;
                     badge.set_current(state);
                 });
