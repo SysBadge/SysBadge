@@ -1,3 +1,4 @@
+use alloc::borrow::Cow;
 use alloc::format;
 use core::mem::MaybeUninit;
 use core::{mem, ptr};
@@ -8,13 +9,13 @@ pub trait Member {
 }
 
 pub trait System {
-    fn name(&self) -> &str;
+    fn name(&self) -> Cow<'_, str>;
     fn member_count(&self) -> usize;
     fn member(&self, index: usize) -> &dyn Member;
 }
 
 impl<'a, S: System> System for &S {
-    fn name(&self) -> &str {
+    fn name(&self) -> Cow<'_, str> {
         (*self).name()
     }
 
@@ -184,8 +185,8 @@ const fn bytes_to_align(align: u32, bytes: u32) -> u32 {
 }
 
 impl System for SystemVec {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> Cow<'_, str> {
+        Cow::Borrowed(&self.name)
     }
 
     fn member_count(&self) -> usize {
@@ -328,8 +329,8 @@ impl SystemUf2 {
 }
 
 impl System for SystemUf2 {
-    fn name(&self) -> &str {
-        self.name()
+    fn name(&self) -> Cow<'_, str> {
+        Cow::Borrowed(self.name())
     }
 
     fn member_count(&self) -> usize {

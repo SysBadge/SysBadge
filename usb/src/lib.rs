@@ -3,6 +3,7 @@ use rusb::{
     constants, Device, DeviceDescriptor, DeviceHandle, Hotplug, HotplugBuilder, Registration,
     UsbContext,
 };
+use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 
 pub use rusb;
@@ -243,9 +244,9 @@ impl<T: UsbContext> UsbSysbadge<T> {
     }
 }
 
-/*impl<T: UsbContext> System for UsbSysbadge<T> {
-    fn name(&self) -> &str {
-        todo!()
+impl<T: UsbContext> System for UsbSysbadge<T> {
+    fn name(&self) -> Cow<'_, str> {
+        Cow::Owned(self.system_name().unwrap_or_else(|_| "Unknown".to_string()))
     }
 
     fn member_count(&self) -> usize {
@@ -255,4 +256,4 @@ impl<T: UsbContext> UsbSysbadge<T> {
     fn member(&self, index: usize) -> &dyn Member {
         todo!()
     }
-}*/
+}

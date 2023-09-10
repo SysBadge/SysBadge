@@ -441,7 +441,7 @@ where
 
     fn draw_system_name(&mut self) -> DrawResult<D> {
         Text::with_alignment(
-            self.system.name(),
+            &self.system.name(),
             self.display.bounding_box().center(),
             MonoTextStyle::new(
                 &embedded_graphics::mono_font::ascii::FONT_10X20,
