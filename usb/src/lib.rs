@@ -1,12 +1,15 @@
 use log::info;
 use rusb::{
-    constants, Device, DeviceDescriptor, DeviceHandle, Hotplug, HotplugBuilder, Registration,
-    UsbContext,
+    constants, Context, Device, DeviceDescriptor, DeviceHandle, Hotplug, HotplugBuilder,
+    Registration, UsbContext,
 };
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 
 pub use rusb;
+use rusb::ffi::libusb_version;
+
+mod c;
 pub mod err;
 
 pub use err::{Error, Result};
@@ -24,7 +27,8 @@ pub struct UsbSysbadge<T: UsbContext> {
 }
 
 impl<T: UsbContext> UsbSysbadge<T> {
-    pub fn open(mut handle: DeviceHandle<T>) -> Result<Self> {
+    #[export_name = "sysbadge_open"]
+    pub extern "C" fn open(mut handle: DeviceHandle<T>) -> Result<Self> {
         let _ = handle.set_auto_detach_kernel_driver(true);
         handle.set_active_configuration(0)?;
 
@@ -35,7 +39,7 @@ impl<T: UsbContext> UsbSysbadge<T> {
         })
     }
 
-    pub fn find(mut context: T) -> Result<Self> {
+    pub extern "C" fn find(mut context: T) -> Result<Self> {
         let (device, descriptor, mut handle) =
             Self::open_device(&mut context, sysbadge::usb::VID, sysbadge::usb::PID)?
                 .ok_or(Error::NoDevice)?;
@@ -43,7 +47,7 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Self::open(handle)
     }
 
-    pub fn press(&self, button: sysbadge::Button) -> Result {
+    pub extern "C" fn press(&self, button: sysbadge::Button) -> Result {
         self.handle.write_control(
             constants::LIBUSB_ENDPOINT_OUT
                 | constants::LIBUSB_REQUEST_TYPE_VENDOR

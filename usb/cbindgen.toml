@@ -1,0 +1,4 @@
+language = "C"
+
+[export.rename]
+"UsbSysbadgeHotplug" = "sysbadge_usb_hotplug"
