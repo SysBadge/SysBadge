@@ -5,6 +5,7 @@
 
 mod usb;
 
+use alloc::string::ToString;
 use alloc_cortex_m::CortexMHeap;
 use defmt::*;
 use embassy_time::{Duration, Timer};
@@ -137,6 +138,21 @@ async fn core0_init(
 
     let flash = Flash::new_blocking(unsafe { peripherals::FLASH::steal() });
     let flash = FLASH.init(Mutex::new(flash));
+
+    // adding serial number
+    {
+        let mut buf = [0; 8];
+        let mut flash = flash.lock().await;
+        defmt::unwrap!(flash.blocking_unique_id(&mut buf));
+        let mut out = [0; 16];
+        defmt::unwrap!(
+            hex::encode_to_slice(&buf, &mut out),
+            "Failed to encode serial"
+        );
+        let serial = unsafe { core::str::from_utf8_unchecked(&out) }.to_string();
+        info!("serial: {}", serial);
+        badge.lock().await.serial = Some(serial);
+    }
 
     spawner.spawn(button_task_a()).unwrap();
     spawner.spawn(button_task_b()).unwrap();

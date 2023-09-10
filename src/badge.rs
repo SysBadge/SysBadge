@@ -272,6 +272,7 @@ where
 {
     pub display: D,
     pub system: S,
+    pub serial: Option<alloc::string::String>,
     current: CurrentMenu,
     hash: u16,
 }
@@ -306,6 +307,7 @@ where
         Self {
             display,
             system,
+            serial: None,
             current: CurrentMenu::SystemName,
             hash: 0,
         }
@@ -390,9 +392,12 @@ where
         )
         .draw(&mut self.display)?;
 
+        let point =
+            Text::with_alignment("Version: ", Point::new(5, 60), text_style, Alignment::Left)
+                .draw(&mut self.display)?;
         Text::with_alignment(
-            concat!("Version: ", env!("CARGO_PKG_VERSION")),
-            Point::new(5, 60),
+            env!("CARGO_PKG_VERSION"),
+            point,
             text_style,
             Alignment::Left,
         )
@@ -402,6 +407,15 @@ where
             &embedded_graphics::mono_font::ascii::FONT_9X18,
             BINARY_COLOR_ON.into(),
         );
+
+        if let Some(serial) = &self.serial {
+            let point =
+                Text::with_alignment("Serial: ", Point::new(5, 90), text_style, Alignment::Left)
+                    .draw(&mut self.display)?;
+            Text::with_alignment(serial, point, text_style, Alignment::Left)
+                .draw(&mut self.display)?;
+        }
+
         Text::with_alignment(
             concat!(
                 "matrix: ",
