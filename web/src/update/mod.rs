@@ -88,8 +88,9 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
 }
 
 fn download_uf2(system: &System) {
-    let vec = system.write_vec(RP2040_ROM_ADDR + RP2040_DATA_ADDR);
-    let vec = uf2::bin_to_uf2(&vec, RP2040_FAMILY_ID, RP2040_ROM_ADDR + RP2040_DATA_ADDR).unwrap();
+    let offset = RP2040_ROM_ADDR + RP2040_DATA_ADDR;
+    let vec = system.get_system().get_bin(offset);
+    let vec = uf2::bin_to_uf2(&vec, RP2040_FAMILY_ID, offset).unwrap();
 
     let download_name = if let Some(name) = &system.info.name {
         format!("{}.uf2", name)
@@ -162,123 +163,6 @@ impl System {
         Ok(Self { id, info, members })
     }
 
-    fn write_vec(&self, offset: u32) -> Vec<u8> {
-        let mut ret = Vec::new();
-
-        let mut system = MaybeUninit::zeroed();
-
-        let name_addr = next_after::<u8>(mem::size_of::<SystemUf2>() as u32);
-        let name_len = self.info.name.as_ref().map(String::len).unwrap_or(0) as u32;
-        let member_addr = next_after::<MemberUF2>(name_addr + name_len);
-        unsafe {
-            ptr::copy_nonoverlapping(
-                (offset + name_addr).to_le_bytes().as_ptr(),
-                system.as_mut_ptr() as *mut u8,
-                4,
-            );
-            ptr::copy_nonoverlapping(
-                name_len.to_le_bytes().as_ptr(),
-                (system.as_mut_ptr() as *mut u8).add(4),
-                4,
-            );
-
-            ptr::copy_nonoverlapping(
-                (offset + member_addr).to_le_bytes().as_ptr(),
-                (system.as_mut_ptr() as *mut u8).add(8),
-                4,
-            );
-            ptr::copy_nonoverlapping(
-                (self.members.len() as u32).to_le_bytes().as_ptr(),
-                (system.as_mut_ptr() as *mut u8).add(12),
-                4,
-            );
-
-            // TODO: crc16
-        }
-
-        let system: SystemUf2 = unsafe { system.assume_init() };
-        ret.extend(core::iter::repeat(0).take(member_addr as usize));
-        unsafe {
-            ptr::copy_nonoverlapping(
-                &system as *const SystemUf2 as *const u8,
-                ret.as_mut_ptr(),
-                mem::size_of::<SystemUf2>(),
-            );
-            ptr::copy_nonoverlapping(
-                self.info
-                    .name
-                    .as_ref()
-                    .map(|s| s.as_ptr())
-                    .unwrap_or(ptr::null()),
-                ret.as_mut_ptr().add(name_addr as usize),
-                name_len as usize,
-            );
-        }
-
-        self.write_members(offset, &mut ret);
-
-        ret
-    }
-
-    fn write_members(&self, offset: u32, vec: &mut Vec<u8>) {
-        let mut start_addr = vec.len();
-        let member_bytes = mem::size_of::<MemberUF2>() * self.members.len();
-        let mut member_end = (start_addr + member_bytes) as u32;
-        vec.extend(core::iter::repeat(0).take(member_bytes));
-
-        for member in &self.members {
-            member_end += Self::write_member(member_end + offset, start_addr, member, vec);
-
-            start_addr += mem::size_of::<MemberUF2>();
-        }
-    }
-
-    fn write_member(
-        offset: u32,
-        member_offset: usize,
-        member: &pkrs::model::Member,
-        vec: &mut Vec<u8>,
-    ) -> u32 {
-        let name_len = member.name.len() as u32;
-        let pronouns_len = member.pronouns.as_ref().map(String::len).unwrap_or(0) as u32;
-        let start_addr = vec.len();
-        vec.extend(core::iter::repeat(0).take((name_len + pronouns_len) as usize));
-
-        // Write member pointers
-        unsafe {
-            let member_ptr = vec.as_mut_ptr().add(member_offset);
-
-            ptr::copy_nonoverlapping(offset.to_le_bytes().as_ptr(), member_ptr, 4);
-            ptr::copy_nonoverlapping(name_len.to_le_bytes().as_ptr(), member_ptr.add(4), 4);
-
-            ptr::copy_nonoverlapping(
-                (offset + name_len).to_le_bytes().as_ptr(),
-                member_ptr.add(8),
-                4,
-            );
-            ptr::copy_nonoverlapping(pronouns_len.to_le_bytes().as_ptr(), member_ptr.add(12), 4);
-        }
-
-        // write member strings
-        unsafe {
-            ptr::copy_nonoverlapping(
-                member.name.as_ptr(),
-                vec.as_mut_ptr().add(start_addr),
-                name_len as usize,
-            );
-            if let Some(pronouns) = &member.pronouns {
-                ptr::copy_nonoverlapping(
-                    pronouns.as_ptr(),
-                    vec.as_mut_ptr().add(start_addr + name_len as usize),
-                    pronouns_len as usize,
-                );
-            }
-        }
-
-        name_len + pronouns_len
-    }
-
-    #[cfg(feature = "badge")]
     fn get_system(&self) -> SystemVec {
         let mut system = SystemVec::new(
             self.info
@@ -305,11 +189,6 @@ impl System {
             badge.display.flush().unwrap();
         }
     }
-}
-
-const fn next_after<T: Sized>(curr: u32) -> u32 {
-    let pad = bytes_to_align(mem::align_of::<T>() as u32, curr);
-    curr + pad
 }
 
 fn pad_align_type<T: Sized>(vec: &mut Vec<u8>) {
