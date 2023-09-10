@@ -1,70 +1,284 @@
 use alloc::format;
-use core::alloc::Layout;
-use core::ptr;
+use core::mem::MaybeUninit;
+use core::{mem, ptr};
+
+pub trait Member {
+    fn name(&self) -> &str;
+    fn pronouns(&self) -> &str;
+}
+
+pub trait System {
+    fn name(&self) -> &str;
+    fn member_count(&self) -> usize;
+    fn member(&self, index: usize) -> &dyn Member;
+}
+
+impl<'a, S: System> System for &S {
+    fn name(&self) -> &str {
+        (*self).name()
+    }
+
+    fn member_count(&self) -> usize {
+        (*self).member_count()
+    }
+
+    fn member(&self, index: usize) -> &dyn Member {
+        (*self).member(index)
+    }
+}
+
+pub struct SystemVec {
+    pub name: alloc::string::String,
+    pub members: alloc::vec::Vec<MemberStrings>,
+}
+
+impl SystemVec {
+    pub fn new(name: alloc::string::String) -> Self {
+        Self {
+            name,
+            members: alloc::vec::Vec::new(),
+        }
+    }
+
+    /*pub fn import_bin(bin: &[u8], offset: u32) -> Self {
+        let mut ret = Self {
+            name: alloc::string::String::new(),
+            members: alloc::vec::Vec::new(),
+        };
+
+        let system: &SystemUf2 = unsafe { &*(bin.as_ptr() as *const _) };
+        let name_len = ptr::metadata(system.name) as usize;
+        let name_offset = system.name as usize - offset as usize;
+        let member_count = ptr::metadata(system.members) as usize;
+        let member_offset = system.members as usize - offset as usize;
+        drop(system);
+        todo!()
+    }*/
+
+    pub fn get_bin(&self, offset: u32) -> alloc::vec::Vec<u8> {
+        let mut ret = alloc::vec::Vec::new();
+
+        let mut system = MaybeUninit::zeroed();
+
+        let name_addr = next_after::<u8>(mem::size_of::<SystemUf2>() as u32);
+        let name_len = self.name.len() as u32;
+        let member_addr = next_after::<MemberUF2>(name_addr + name_len);
+        unsafe {
+            // writing name address
+            ptr::copy_nonoverlapping(
+                (offset + name_addr).to_le_bytes().as_ptr(),
+                system.as_mut_ptr() as *mut u8,
+                4,
+            );
+            // writing name length
+            ptr::copy_nonoverlapping(
+                name_len.to_le_bytes().as_ptr(),
+                (system.as_mut_ptr() as *mut u8).add(4),
+                4,
+            );
+
+            // write member offset
+            ptr::copy_nonoverlapping(
+                (offset + member_addr).to_le_bytes().as_ptr(),
+                (system.as_mut_ptr() as *mut u8).add(8),
+                4,
+            );
+            // write member count
+            ptr::copy_nonoverlapping(
+                self.members.len().to_le_bytes().as_ptr(),
+                (system.as_mut_ptr() as *mut u8).add(12),
+                4,
+            );
+        }
+
+        let system: SystemUf2 = unsafe { system.assume_init() };
+        ret.extend(core::iter::repeat(0).take(member_addr as usize));
+        unsafe {
+            // writing system information
+            ptr::copy_nonoverlapping(
+                &system as *const SystemUf2 as *const u8,
+                ret.as_mut_ptr(),
+                mem::size_of::<SystemUf2>(),
+            );
+            // writing name
+            ptr::copy_nonoverlapping(
+                self.name.as_ptr(),
+                ret.as_mut_ptr().add(name_addr as usize),
+                name_len as usize,
+            );
+        }
+
+        self.write_members(&mut ret, offset);
+
+        ret
+    }
+
+    fn write_members(&self, buf: &mut alloc::vec::Vec<u8>, offset: u32) {
+        let mut start_addr = buf.len();
+        let member_bytes = mem::size_of::<MemberUF2>() * self.members.len();
+        let mut member_end = (start_addr + member_bytes) as u32;
+        buf.extend(core::iter::repeat(0).take(member_bytes));
+
+        for member in &self.members {
+            member_end += Self::write_member(member_end + offset, start_addr, member, buf);
+
+            start_addr += mem::size_of::<MemberUF2>();
+        }
+    }
+
+    fn write_member(
+        offset: u32,
+        member_offset: usize,
+        member: &MemberStrings,
+        buf: &mut alloc::vec::Vec<u8>,
+    ) -> u32 {
+        let name_len = member.name.len() as u32;
+        let pronouns_len = member.pronouns.len() as u32;
+        let start_addr = buf.len();
+        buf.extend(core::iter::repeat(0).take((name_len + pronouns_len) as usize));
+
+        // write member pointers
+        unsafe {
+            let member_ptr = buf.as_mut_ptr().add(member_offset);
+
+            // write name pointer
+            ptr::copy_nonoverlapping(offset.to_le_bytes().as_ptr(), member_ptr, 4);
+            // write name len
+            ptr::copy_nonoverlapping(name_len.to_le_bytes().as_ptr(), member_ptr.add(4), 4);
+
+            // write pronouns pointer
+            ptr::copy_nonoverlapping(
+                (offset + name_len).to_le_bytes().as_ptr(),
+                member_ptr.add(8),
+                4,
+            );
+            // write pronouns len
+            ptr::copy_nonoverlapping(pronouns_len.to_le_bytes().as_ptr(), member_ptr.add(12), 4);
+        }
+
+        // write strings
+        unsafe {
+            ptr::copy_nonoverlapping(
+                member.name.as_ptr(),
+                buf.as_mut_ptr().add(start_addr),
+                name_len as usize,
+            );
+            ptr::copy_nonoverlapping(
+                member.pronouns.as_ptr(),
+                buf.as_mut_ptr().add(start_addr + name_len as usize),
+                pronouns_len as usize,
+            );
+        }
+
+        name_len + pronouns_len
+    }
+}
+
+const fn next_after<T: Sized>(curr: u32) -> u32 {
+    let pad = bytes_to_align(mem::align_of::<T>() as u32, curr);
+    curr + pad
+}
+
+const fn bytes_to_align(align: u32, bytes: u32) -> u32 {
+    (align - (bytes % align)) % align
+}
+
+impl System for SystemVec {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn member_count(&self) -> usize {
+        self.members.len()
+    }
+
+    fn member(&self, index: usize) -> &dyn Member {
+        &self.members[index]
+    }
+}
+
+pub struct MemberStrings {
+    pub name: alloc::string::String,
+    pub pronouns: alloc::string::String,
+}
+
+impl Member for MemberStrings {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn pronouns(&self) -> &str {
+        &self.pronouns
+    }
+}
+
+trait U32Pointee: ptr::Pointee {
+    type Metadata: Copy + Send + Sync + Ord + core::hash::Hash + Unpin;
+}
+
+/*impl<P: core::ptr::Pointee<Metadata=()>> U32Pointee for P {
+    type Metadata = ();
+}*/
+
+impl<P: ptr::Pointee<Metadata = usize> + ?Sized> U32Pointee for P {
+    type Metadata = u32;
+}
+
+#[repr(C)]
+struct U32PtrRepr<T: U32Pointee + ?Sized> {
+    addr: u32,
+    metadata: <T as U32Pointee>::Metadata,
+}
+
+impl<T: U32Pointee + ?Sized> U32PtrRepr<T> {
+    pub fn from_raw_parts(addr: u32, metadata: <T as U32Pointee>::Metadata) -> Self {
+        Self { addr, metadata }
+    }
+}
+
+/*impl<T: U32Pointee<Metadata=()>> U32PtrRepr<T> {
+    fn get(&self) -> *const T {
+        self.addr as *const T
+    }
+}*/
+
+impl<T: U32Pointee<Metadata = u32> + ptr::Pointee<Metadata = usize> + ?Sized> U32PtrRepr<T> {
+    fn get(&self) -> *const T {
+        ptr::from_raw_parts(self.addr as *const (), self.metadata as usize)
+    }
+}
 
 /// Flash representaion of a member
 // INVARIANTS:
 // - `name` has to be valid utf8
 // - `pronouns` has to be valid utf8
 #[repr(C)]
-pub struct Member {
-    name: *mut str,
-    pronouns: *mut str,
+pub struct MemberUF2 {
+    name: U32PtrRepr<str>,
+    pronouns: U32PtrRepr<str>,
 }
 
-#[cfg(feature = "simulator")]
-impl Member {
-    pub fn new_str(name: &str, pronouns: &str) -> Self {
-        use core::alloc::Layout;
-
-        let layout_name = Layout::array::<u8>(name.len()).unwrap();
-        let layout_pronouns = Layout::array::<u8>(pronouns.len()).unwrap();
-        let (layout, pronouns_offset) = layout_name.extend(layout_pronouns).unwrap();
-
-        let ptr = unsafe {
-            let ptr = alloc::alloc::alloc(layout);
-            ptr::copy_nonoverlapping(name.as_ptr(), ptr, name.len());
-            ptr::copy_nonoverlapping(pronouns.as_ptr(), ptr.add(pronouns_offset), pronouns.len());
-            ptr
-        };
-
-        Self {
-            name: ptr::from_raw_parts_mut(ptr.cast(), name.len()),
-            pronouns: ptr::from_raw_parts_mut(
-                unsafe { ptr.add(pronouns_offset).cast() },
-                pronouns.len(),
-            ),
-        }
-    }
-}
-
-impl Member {
+impl MemberUF2 {
     #[inline(always)]
     pub fn name(&self) -> &str {
         // SAFETY: type invariant
-        unsafe { &*self.name }
+        unsafe { &*self.name.get() }
     }
 
     #[inline(always)]
     pub fn pronouns(&self) -> &str {
         // SAFETY: type invariant
-        unsafe { &*self.pronouns }
+        unsafe { &*self.pronouns.get() }
     }
 }
 
-#[cfg(feature = "simulator")]
-impl Drop for Member {
-    fn drop(&mut self) {
-        // TEST if really from simulator memory
-        let name_len = core::ptr::metadata(self.name);
-        if unsafe { (self.name as *const u8).add(name_len) } == (self.pronouns as *const u8) {
-            unsafe {
-                alloc::alloc::dealloc(
-                    self.name.cast(),
-                    Layout::from_size_align_unchecked(name_len + ptr::metadata(self.pronouns), 1),
-                )
-            }
-        }
+impl Member for MemberUF2 {
+    fn name(&self) -> &str {
+        self.name()
+    }
+
+    fn pronouns(&self) -> &str {
+        self.pronouns()
     }
 }
 
@@ -75,53 +289,55 @@ impl Drop for Member {
 // - `members` has to point to a valid member array
 #[repr(C)]
 pub struct SystemUf2 {
-    name: *const str,
-    members: *const [Member],
+    name: U32PtrRepr<str>,
+    members: U32PtrRepr<[MemberUF2]>,
     crc16: u16,
 }
 
 #[cfg(feature = "simulator")]
 impl SystemUf2 {
-    pub const ZERO: Self = Self {
+    /*pub const ZERO: Self = Self {
         name: unsafe { ptr::from_raw_parts_mut(ptr::null_mut(), 0) },
         members: unsafe { ptr::from_raw_parts_mut(ptr::null_mut(), 0) },
         crc16: 0,
-    };
-
-    /// This leaks the memory
-    pub fn new_from_box(
-        name: alloc::boxed::Box<str>,
-        members: alloc::boxed::Box<[Member]>,
-    ) -> Self {
-        Self {
-            name: alloc::boxed::Box::leak(name),
-            members: alloc::boxed::Box::leak(members),
-            crc16: 0,
-        }
-    }
+    };*/
 }
 
 impl SystemUf2 {
     #[inline(always)]
     pub fn name(&self) -> &str {
         // SAFETY: type invariant
-        unsafe { &*self.name }
+        unsafe { &*self.name.get() }
     }
 
     #[inline(always)]
-    pub fn members(&self) -> &[Member] {
+    pub fn members(&self) -> &[MemberUF2] {
         // SAFETY: held by type invariant
-        unsafe { &*self.members }
+        unsafe { &*self.members.get() }
     }
 
     #[inline(always)]
     pub fn len(&self) -> usize {
-        core::ptr::metadata(self.members)
+        self.members.metadata as usize
     }
 
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+}
+
+impl System for SystemUf2 {
+    fn name(&self) -> &str {
+        self.name()
+    }
+
+    fn member_count(&self) -> usize {
+        self.len()
+    }
+
+    fn member(&self, index: usize) -> &dyn Member {
+        &self.members()[index]
     }
 }
 
@@ -141,7 +357,7 @@ pub(crate) struct DrawableMember<'a, C>
 where
     C: PixelColor + From<BinaryColor>,
 {
-    member: &'a Member,
+    member: &'a dyn Member,
     bounds: Rectangle,
     select: super::Select,
     _color: core::marker::PhantomData<C>,
@@ -151,7 +367,7 @@ impl<'a, C> DrawableMember<'a, C>
 where
     C: PixelColor + From<BinaryColor>,
 {
-    pub fn new(member: &'a Member, bounds: Rectangle, select: super::Select) -> Self {
+    pub fn new(member: &'a dyn Member, bounds: Rectangle, select: super::Select) -> Self {
         Self {
             member,
             bounds,

@@ -16,6 +16,8 @@ use embedded_graphics::text::{Alignment, Text};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
+pub use system::System;
+
 pub mod system;
 pub mod usb;
 
@@ -203,17 +205,18 @@ impl CurrentMembers {
         }
     }
 
-    fn draw<D>(&self, system: &SystemUf2, target: &mut D) -> DrawResult<D>
+    fn draw<D, S>(&self, system: &S, target: &mut D) -> DrawResult<D>
     where
         D: DrawTarget,
         <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
+        S: System,
     {
         debug_assert!(self.len != 0 && self.len <= 4);
 
         match self.len {
             1 => {
                 DrawableMember::new(
-                    &system.members()[self.members[0].id as usize],
+                    system.member(self.members[0].id as usize),
                     target.bounding_box(),
                     self.sel_for_cell(0),
                 )
@@ -224,7 +227,7 @@ impl CurrentMembers {
             }
             3 => {
                 DrawableMember::new(
-                    &system.members()[self.members[0].id as usize],
+                    system.member(self.members[0].id as usize),
                     target
                         .bounding_box()
                         .resized_height(target.bounding_box().size.height / 3, AnchorY::Top),
@@ -232,7 +235,7 @@ impl CurrentMembers {
                 )
                 .draw(target)?;
                 DrawableMember::new(
-                    &system.members()[self.members[1].id as usize],
+                    system.member(self.members[1].id as usize),
                     target
                         .bounding_box()
                         .resized_height(target.bounding_box().size.height / 3, AnchorY::Center),
@@ -240,7 +243,7 @@ impl CurrentMembers {
                 )
                 .draw(target)?;
                 DrawableMember::new(
-                    &system.members()[self.members[2].id as usize],
+                    system.member(self.members[2].id as usize),
                     target
                         .bounding_box()
                         .resized_height(target.bounding_box().size.height / 3, AnchorY::Bottom),
@@ -272,25 +275,26 @@ impl CurrentMembers {
         Ok(())
     }
 
-    fn draw_two<D>(
+    fn draw_two<D, S>(
         &self,
         idx: (u8, u8),
-        system: &SystemUf2,
+        system: &S,
         bounds: Rectangle,
         target: &mut D,
     ) -> DrawResult<D>
     where
         D: DrawTarget,
         <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
+        S: System,
     {
         DrawableMember::new(
-            &system.members()[self.members[idx.0 as usize].id as usize],
+            system.member(self.members[idx.0 as usize].id as usize),
             bounds.resized_height(bounds.size.height / 2, AnchorY::Top),
             self.sel_for_cell(idx.0),
         )
         .draw(target)?;
         DrawableMember::new(
-            &system.members()[self.members[idx.1 as usize].id as usize],
+            system.member(self.members[idx.1 as usize].id as usize),
             bounds.resized_height(bounds.size.height / 2, AnchorY::Bottom),
             self.sel_for_cell(idx.1),
         )
@@ -338,18 +342,19 @@ impl CurrentMenu {
     }
 }
 
-pub struct Sysbadge<'a, D>
+pub struct Sysbadge<D, S>
 where
     D: DrawTarget,
     <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
+    S: System,
 {
     pub display: D,
-    pub system: &'a SystemUf2,
+    pub system: S,
     current: CurrentMenu,
     hash: u16,
 }
 
-impl<D> Sysbadge<'static, D>
+impl<D> Sysbadge<D, &'static SystemUf2>
 where
     D: DrawTarget,
     <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
@@ -369,12 +374,13 @@ where
     }
 }
 
-impl<'a, D> Sysbadge<'a, D>
+impl<D, S> Sysbadge<D, S>
 where
     D: DrawTarget,
     <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
+    S: System,
 {
-    pub fn new_with_system(display: D, system: &'a SystemUf2) -> Self {
+    pub fn new_with_system(display: D, system: S) -> Self {
         Self {
             display,
             system,
@@ -384,7 +390,7 @@ where
     }
 
     pub fn press(&mut self, button: Button) {
-        self.current.change(button, self.system.len());
+        self.current.change(button, self.system.member_count());
 
         #[cfg(feature = "defmt")]
         defmt::debug!(
@@ -410,7 +416,7 @@ where
         match self.current {
             CurrentMenu::SystemName => self.draw_system_name(),
             CurrentMenu::Version => self.draw_version(),
-            CurrentMenu::Member(ref cur) => cur.draw(self.system, &mut self.display),
+            CurrentMenu::Member(ref cur) => cur.draw(&self.system, &mut self.display),
         }
     }
 

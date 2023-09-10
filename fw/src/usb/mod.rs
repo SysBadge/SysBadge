@@ -20,14 +20,28 @@ embassy_rp::bind_interrupts!(struct Irqs {
 pub async fn init(
     spawner: Spawner,
     badge: &'static Mutex<CriticalSectionRawMutex, crate::SysbadgeUc8151<'static>>,
+    flash: &'static crate::RpFlashMutex<'static>,
 ) {
     let driver = Driver::new(unsafe { embassy_rp::peripherals::USB::steal() }, Irqs);
+
+    let serial = {
+        let mut buf = [0; 8];
+        let mut flash = flash.lock().await;
+        defmt::unwrap!(flash.blocking_unique_id(&mut buf));
+        let mut out = [0; 16];
+        defmt::unwrap!(
+            hex::encode_to_slice(&buf, &mut out),
+            "Failed to encode serial"
+        );
+        out
+    };
+    let serial = unsafe { core::str::from_utf8_unchecked(&serial) };
 
     // Create config
     let mut config = Config::new(sysusb::VID, sysusb::PID);
     config.manufacturer = Some("nyantec GmbH");
     config.product = Some("Sysbadge");
-    config.serial_number = Some("12345678");
+    config.serial_number = Some(serial);
     config.max_power = 100;
     config.max_packet_size_0 = 64;
 
@@ -43,7 +57,7 @@ pub async fn init(
     let mut bos_descriptor = [0; 256];
     let mut control_buf = [0; 64];
 
-    let mut state = class::State::new(badge);
+    let mut state = class::State::new(badge, flash);
 
     let mut builder = Builder::new(
         driver,

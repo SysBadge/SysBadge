@@ -1,6 +1,7 @@
 use core::mem::MaybeUninit;
 use defmt::*;
 use embassy_futures::block_on;
+use embassy_rp::flash::Flash;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_usb::control::{InResponse, OutResponse, Recipient, Request, RequestType};
@@ -8,21 +9,26 @@ use embassy_usb::driver::Driver;
 use embassy_usb::types::InterfaceNumber;
 use embassy_usb::{Builder, Handler};
 
-use crate::{UsbControl, UsbResponse, USB_RESP};
+use crate::{RpFlashMutex, UsbControl, UsbResponse, USB_RESP};
+use sysbadge::usb::BootSel::Application;
+use sysbadge::usb::VersionType;
 use sysbadge::{usb as sysusb, CurrentMenu};
 
 pub struct State {
     control: MaybeUninit<Control>,
     badge: &'static Mutex<CriticalSectionRawMutex, crate::SysbadgeUc8151<'static>>,
+    flash: &'static RpFlashMutex<'static>,
 }
 
 impl State {
     pub fn new(
         badge: &'static Mutex<CriticalSectionRawMutex, crate::SysbadgeUc8151<'static>>,
+        flash: &'static crate::RpFlashMutex<'static>,
     ) -> Self {
         Self {
             control: MaybeUninit::uninit(),
             badge,
+            flash,
         }
     }
 }
@@ -52,6 +58,7 @@ impl<'d, D: Driver<'d>> SysbadgeClass<'d, D> {
         let control = state.control.write(Control {
             comm_if,
             badge: state.badge,
+            flash: state.flash,
         });
         builder.handler(control);
 
@@ -64,6 +71,7 @@ impl<'d, D: Driver<'d>> SysbadgeClass<'d, D> {
 struct Control {
     comm_if: InterfaceNumber,
     badge: &'static Mutex<CriticalSectionRawMutex, crate::SysbadgeUc8151<'static>>,
+    flash: &'static RpFlashMutex<'static>,
 }
 
 impl Handler for Control {
@@ -112,6 +120,18 @@ impl Handler for Control {
                 });
                 Some(OutResponse::Accepted)
             }
+            Ok(sysusb::Request::Reboot) => match sysusb::BootSel::try_from(req.value as u8) {
+                Ok(Application) => {
+                    warn!("Not yet supported");
+                    Some(OutResponse::Rejected)
+                }
+                Ok(v) => {
+                    let mask = v.disable_interface_mask().unwrap();
+                    embassy_rp::rom_data::reset_to_usb_boot(1 << 25, mask);
+                    Some(OutResponse::Accepted)
+                }
+                Err(_) => Some(OutResponse::Rejected),
+            },
             _ => Some(OutResponse::Rejected),
         }
     }
@@ -220,29 +240,66 @@ impl Handler for Control {
 
                 Some(InResponse::Accepted(&buf[..len]))
             }
-            Ok(sysusb::Request::GetVersion)
-                if req.value == (sysusb::VersionType::SemVer as u16)
-                    && req.length >= sysbadge::VERSION.len() as u16 =>
-            {
-                debug!("Sending version");
-                buf[..sysbadge::VERSION.len()].copy_from_slice(sysbadge::VERSION.as_bytes());
-                Some(InResponse::Accepted(&buf[..sysbadge::VERSION.len()]))
-            }
-            Ok(sysusb::Request::GetVersion)
-                if req.value == (sysusb::VersionType::Matrix as u16)
-                    && req.length >= sysbadge::MATRIX.len() as u16 =>
-            {
-                debug!("Sending matrix");
-                buf[..sysbadge::MATRIX.len()].copy_from_slice(sysbadge::MATRIX.as_bytes());
-                Some(InResponse::Accepted(&buf[..sysbadge::MATRIX.len()]))
-            }
-            Ok(sysusb::Request::GetVersion)
-                if req.value == (sysusb::VersionType::Web as u16)
-                    && req.length >= sysbadge::WEB.len() as u16 =>
-            {
-                debug!("Sending web");
-                buf[..sysbadge::WEB.len()].copy_from_slice(sysbadge::WEB.as_bytes());
-                Some(InResponse::Accepted(&buf[..sysbadge::WEB.len()]))
+            Ok(sysusb::Request::GetVersion) => {
+                use sysusb::VersionType;
+                match VersionType::try_from(req.value as u8) {
+                    Ok(VersionType::Jedec) if req.length >= 4 => {
+                        debug!("Sending jedec id");
+
+                        let result =
+                            block_on(async { self.flash.lock().await.blocking_jedec_id() });
+                        match result {
+                            Ok(id) => {
+                                defmt::assert!(buf.len() >= 4);
+                                buf[..4].copy_from_slice(&id.to_le_bytes());
+                                Some(InResponse::Accepted(&buf[..4]))
+                            }
+                            Err(_) => Some(InResponse::Rejected),
+                        }
+                    }
+                    Ok(VersionType::UniqueId) => {
+                        debug!("Sending unique id");
+
+                        let result =
+                            block_on(async { self.flash.lock().await.blocking_unique_id(buf) });
+                        match result {
+                            Ok(_) => Some(InResponse::Accepted(buf)),
+                            Err(_) => Some(InResponse::Rejected),
+                        }
+                    }
+                    Ok(VersionType::SerialNumber) if req.length >= 16 => {
+                        let serial = block_on(async {
+                            let mut buf = [0; 8];
+                            let mut flash = self.flash.lock().await;
+                            defmt::unwrap!(flash.blocking_unique_id(&mut buf));
+                            let mut out = [0; 16];
+                            defmt::unwrap!(
+                                hex::encode_to_slice(&buf, &mut out),
+                                "Failed to encode serial"
+                            );
+                            out
+                        });
+                        buf[..serial.len()].copy_from_slice(&serial);
+                        Some(InResponse::Accepted(&buf[..serial.len()]))
+                    }
+                    Ok(VersionType::SemVer) if req.length >= sysbadge::VERSION.len() as u16 => {
+                        debug!("Sending version");
+                        buf[..sysbadge::VERSION.len()]
+                            .copy_from_slice(sysbadge::VERSION.as_bytes());
+                        Some(InResponse::Accepted(&buf[..sysbadge::VERSION.len()]))
+                    }
+                    Ok(VersionType::Matrix) if req.length >= sysbadge::MATRIX.len() as u16 => {
+                        debug!("Sending matrix");
+                        buf[..sysbadge::MATRIX.len()].copy_from_slice(sysbadge::MATRIX.as_bytes());
+                        Some(InResponse::Accepted(&buf[..sysbadge::MATRIX.len()]))
+                    }
+                    Ok(VersionType::Matrix) if req.length >= sysbadge::WEB.len() as u16 => {
+                        debug!("Sending web");
+                        buf[..sysbadge::WEB.len()].copy_from_slice(sysbadge::WEB.as_bytes());
+                        Some(InResponse::Accepted(&buf[..sysbadge::WEB.len()]))
+                    }
+                    _ => Some(InResponse::Rejected),
+                }
             }
             _ => Some(InResponse::Rejected),
         }

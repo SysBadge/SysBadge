@@ -19,6 +19,7 @@ static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_futures::select::select;
+use embassy_rp::flash::Flash;
 use embassy_rp::gpio::{Input, Level, Output, Pull};
 use embassy_rp::peripherals::CORE1;
 use embassy_rp::spi::Spi;
@@ -30,6 +31,7 @@ use panic_probe as _;
 
 use uc8151::Uc8151;
 
+use sysbadge::system::SystemUf2;
 use sysbadge::{Button, Sysbadge};
 
 pub enum UsbControl {
@@ -52,8 +54,13 @@ static USB_RESP: Channel<CriticalSectionRawMutex, UsbResponse, 1> = Channel::new
 static BADGE: static_cell::StaticCell<Mutex<CriticalSectionRawMutex, SysbadgeUc8151>> =
     static_cell::StaticCell::new();
 
+const FLASH_SIZE: usize = 2 * 1024 * 1024;
+pub type RpFlash<'a> = Flash<'a, peripherals::FLASH, embassy_rp::flash::Blocking, FLASH_SIZE>;
+static FLASH: static_cell::StaticCell<Mutex<CriticalSectionRawMutex, RpFlash<'static>>> =
+    static_cell::StaticCell::new();
+pub type RpFlashMutex<'a> = Mutex<CriticalSectionRawMutex, RpFlash<'a>>;
+
 type SysbadgeUc8151<'a> = Sysbadge<
-    'a,
     Uc8151<
         Spi<'a, peripherals::SPI0, embassy_rp::spi::Blocking>,
         Output<'a, peripherals::PIN_17>,
@@ -61,6 +68,7 @@ type SysbadgeUc8151<'a> = Sysbadge<
         Input<'a, peripherals::PIN_26>,
         Output<'a, peripherals::PIN_21>,
     >,
+    &'a SystemUf2,
 >;
 
 #[cortex_m_rt::entry]
@@ -68,6 +76,7 @@ fn main() -> ! {
     unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, 2048) }
 
     let p = embassy_rp::init(Default::default());
+
     let badge = init(p);
     let badge = BADGE.init(Mutex::new(badge));
     let badge: &Mutex<_, _> = badge;
@@ -77,12 +86,12 @@ fn main() -> ! {
         unsafe { &mut CORE1_STACK },
         move || {
             let executor1 = EXECUTOR1.init(embassy_executor::Executor::new());
-            executor1.run(|spawner| unwrap!(spawner.spawn(core0_init(spawner, badge))));
+            executor1.run(|spawner| unwrap!(spawner.spawn(core1_init(spawner, badge))));
         },
     );
 
     let executor0 = EXECUTOR0.init(embassy_executor::Executor::new());
-    executor0.run(|spawner| unwrap!(spawner.spawn(core1_init(spawner, badge))));
+    executor0.run(|spawner| unwrap!(spawner.spawn(core0_init(spawner, badge))));
 }
 
 fn init(p: Peripherals) -> SysbadgeUc8151<'static> {
@@ -122,12 +131,21 @@ async fn core0_init(
 ) {
     info!("Starting tasks on core 0");
 
+    // add some delay to give an attached debug probe time to parse the
+    // defmt RTT header. Reading that header might touch flash memory, which
+    // interferes with flash write operations.
+    // https://github.com/knurling-rs/defmt/pull/683
+    Timer::after(Duration::from_millis(10)).await;
+
+    let flash = Flash::new_blocking(unsafe { peripherals::FLASH::steal() });
+    let flash = FLASH.init(Mutex::new(flash));
+
     spawner.spawn(button_task_a()).unwrap();
     spawner.spawn(button_task_b()).unwrap();
     spawner.spawn(button_task_c()).unwrap();
     spawner.spawn(button_task_up()).unwrap();
     spawner.spawn(button_task_down()).unwrap();
-    spawner.spawn(usb::init(spawner, badge)).unwrap();
+    spawner.spawn(usb::init(spawner, badge, flash)).unwrap();
 }
 
 #[embassy_executor::task]
