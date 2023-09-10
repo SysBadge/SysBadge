@@ -31,6 +31,7 @@ use panic_probe as _;
 
 use uc8151::Uc8151;
 
+use sysbadge::system::SystemUf2;
 use sysbadge::{Button, Sysbadge};
 
 pub enum UsbControl {
@@ -60,7 +61,6 @@ static FLASH: static_cell::StaticCell<Mutex<CriticalSectionRawMutex, RpFlash<'st
 pub type RpFlashMutex<'a> = Mutex<CriticalSectionRawMutex, RpFlash<'a>>;
 
 type SysbadgeUc8151<'a> = Sysbadge<
-    'a,
     Uc8151<
         Spi<'a, peripherals::SPI0, embassy_rp::spi::Blocking>,
         Output<'a, peripherals::PIN_17>,
@@ -68,6 +68,7 @@ type SysbadgeUc8151<'a> = Sysbadge<
         Input<'a, peripherals::PIN_26>,
         Output<'a, peripherals::PIN_21>,
     >,
+    &'a SystemUf2,
 >;
 
 #[cortex_m_rt::entry]

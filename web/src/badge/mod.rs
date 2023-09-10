@@ -1,11 +1,12 @@
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics_web_simulator::display::WebSimulatorDisplay;
-use sysbadge::system::{Member, SystemUf2};
+use sysbadge::system::{MemberUF2, SystemUf2, SystemVec};
 use sysbadge::Sysbadge;
 use wasm_bindgen::prelude::*;
 use web_sys::{console, Document};
-pub(crate) static mut SYSTEM: SystemUf2 = SystemUf2::ZERO;
-pub(crate) static mut SYSBADGE: Option<Sysbadge<WebSimulatorDisplay<BinaryColor>>> = None;
+
+pub(crate) static mut SYSBADGE: Option<Sysbadge<WebSimulatorDisplay<BinaryColor>, SystemVec>> =
+    None;
 
 pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
     if let Some(app) = document.get_element_by_id("sysbadge-badge") {
@@ -25,10 +26,7 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
         );
 
         let system = create_system();
-        unsafe {
-            SYSTEM = system;
-        }
-        let mut sysbadge = Sysbadge::new_with_system(display, unsafe { &SYSTEM });
+        let mut sysbadge = Sysbadge::new_with_system(display, system);
 
         sysbadge.draw().unwrap();
 
@@ -92,14 +90,15 @@ pub fn press_button(button: sysbadge::Button) {
     sysbadge.display.flush().unwrap();
 }
 
-fn create_system() -> SystemUf2 {
-    let members = Box::new([
-        Member::new_str("Myriad", "they/them"),
-        Member::new_str("Tester T. Testington", ""),
-    ]);
-
-    SystemUf2::new_from_box(
-        "PluralKit Example System".to_string().into_boxed_str(),
-        members,
-    )
+fn create_system() -> SystemVec {
+    let mut system = SystemVec::new("PluralKit Example System".to_string());
+    system.members.push(sysbadge::system::MemberStrings {
+        name: "Myriad".to_string(),
+        pronouns: "they/them".to_string(),
+    });
+    system.members.push(sysbadge::system::MemberStrings {
+        name: "Tester T. Testington".to_string(),
+        pronouns: "".to_string(),
+    });
+    system
 }

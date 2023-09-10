@@ -1,44 +1,85 @@
 use alloc::format;
-use core::alloc::Layout;
 use core::ptr;
+
+pub trait Member {
+    fn name(&self) -> &str;
+    fn pronouns(&self) -> &str;
+}
+
+pub trait System {
+    fn name(&self) -> &str;
+    fn member_count(&self) -> usize;
+    fn member(&self, index: usize) -> &dyn Member;
+}
+
+impl<'a, S: System> System for &S {
+    fn name(&self) -> &str {
+        (*self).name()
+    }
+
+    fn member_count(&self) -> usize {
+        (*self).member_count()
+    }
+
+    fn member(&self, index: usize) -> &dyn Member {
+        (*self).member(index)
+    }
+}
+
+pub struct SystemVec {
+    pub name: alloc::string::String,
+    pub members: alloc::vec::Vec<MemberStrings>,
+}
+
+impl SystemVec {
+    pub fn new(name: alloc::string::String) -> Self {
+        Self {
+            name,
+            members: alloc::vec::Vec::new(),
+        }
+    }
+}
+
+impl System for SystemVec {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn member_count(&self) -> usize {
+        self.members.len()
+    }
+
+    fn member(&self, index: usize) -> &dyn Member {
+        &self.members[index]
+    }
+}
+
+pub struct MemberStrings {
+    pub name: alloc::string::String,
+    pub pronouns: alloc::string::String,
+}
+
+impl Member for MemberStrings {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn pronouns(&self) -> &str {
+        &self.pronouns
+    }
+}
 
 /// Flash representaion of a member
 // INVARIANTS:
 // - `name` has to be valid utf8
 // - `pronouns` has to be valid utf8
 #[repr(C)]
-pub struct Member {
+pub struct MemberUF2 {
     name: *mut str,
     pronouns: *mut str,
 }
 
-#[cfg(feature = "simulator")]
-impl Member {
-    pub fn new_str(name: &str, pronouns: &str) -> Self {
-        use core::alloc::Layout;
-
-        let layout_name = Layout::array::<u8>(name.len()).unwrap();
-        let layout_pronouns = Layout::array::<u8>(pronouns.len()).unwrap();
-        let (layout, pronouns_offset) = layout_name.extend(layout_pronouns).unwrap();
-
-        let ptr = unsafe {
-            let ptr = alloc::alloc::alloc(layout);
-            ptr::copy_nonoverlapping(name.as_ptr(), ptr, name.len());
-            ptr::copy_nonoverlapping(pronouns.as_ptr(), ptr.add(pronouns_offset), pronouns.len());
-            ptr
-        };
-
-        Self {
-            name: ptr::from_raw_parts_mut(ptr.cast(), name.len()),
-            pronouns: ptr::from_raw_parts_mut(
-                unsafe { ptr.add(pronouns_offset).cast() },
-                pronouns.len(),
-            ),
-        }
-    }
-}
-
-impl Member {
+impl MemberUF2 {
     #[inline(always)]
     pub fn name(&self) -> &str {
         // SAFETY: type invariant
@@ -52,19 +93,13 @@ impl Member {
     }
 }
 
-#[cfg(feature = "simulator")]
-impl Drop for Member {
-    fn drop(&mut self) {
-        // TEST if really from simulator memory
-        let name_len = core::ptr::metadata(self.name);
-        if unsafe { (self.name as *const u8).add(name_len) } == (self.pronouns as *const u8) {
-            unsafe {
-                alloc::alloc::dealloc(
-                    self.name.cast(),
-                    Layout::from_size_align_unchecked(name_len + ptr::metadata(self.pronouns), 1),
-                )
-            }
-        }
+impl Member for MemberUF2 {
+    fn name(&self) -> &str {
+        self.name()
+    }
+
+    fn pronouns(&self) -> &str {
+        self.pronouns()
     }
 }
 
@@ -76,7 +111,7 @@ impl Drop for Member {
 #[repr(C)]
 pub struct SystemUf2 {
     name: *const str,
-    members: *const [Member],
+    members: *const [MemberUF2],
     crc16: u16,
 }
 
@@ -87,18 +122,6 @@ impl SystemUf2 {
         members: unsafe { ptr::from_raw_parts_mut(ptr::null_mut(), 0) },
         crc16: 0,
     };
-
-    /// This leaks the memory
-    pub fn new_from_box(
-        name: alloc::boxed::Box<str>,
-        members: alloc::boxed::Box<[Member]>,
-    ) -> Self {
-        Self {
-            name: alloc::boxed::Box::leak(name),
-            members: alloc::boxed::Box::leak(members),
-            crc16: 0,
-        }
-    }
 }
 
 impl SystemUf2 {
@@ -109,7 +132,7 @@ impl SystemUf2 {
     }
 
     #[inline(always)]
-    pub fn members(&self) -> &[Member] {
+    pub fn members(&self) -> &[MemberUF2] {
         // SAFETY: held by type invariant
         unsafe { &*self.members }
     }
@@ -122,6 +145,20 @@ impl SystemUf2 {
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+}
+
+impl System for SystemUf2 {
+    fn name(&self) -> &str {
+        self.name()
+    }
+
+    fn member_count(&self) -> usize {
+        self.len()
+    }
+
+    fn member(&self, index: usize) -> &dyn Member {
+        &self.members()[index]
     }
 }
 
@@ -141,7 +178,7 @@ pub(crate) struct DrawableMember<'a, C>
 where
     C: PixelColor + From<BinaryColor>,
 {
-    member: &'a Member,
+    member: &'a dyn Member,
     bounds: Rectangle,
     select: super::Select,
     _color: core::marker::PhantomData<C>,
@@ -151,7 +188,7 @@ impl<'a, C> DrawableMember<'a, C>
 where
     C: PixelColor + From<BinaryColor>,
 {
-    pub fn new(member: &'a Member, bounds: Rectangle, select: super::Select) -> Self {
+    pub fn new(member: &'a dyn Member, bounds: Rectangle, select: super::Select) -> Self {
         Self {
             member,
             bounds,

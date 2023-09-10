@@ -7,7 +7,7 @@ use embedded_graphics_simulator::{
     sdl2::Keycode, BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent,
     Window,
 };
-use sysbadge::system::{Member, SystemUf2};
+use sysbadge::system::{MemberUF2, SystemUf2, SystemVec};
 use sysbadge::{Button, Sysbadge};
 
 fn main() -> Result<(), core::convert::Infallible> {
@@ -20,7 +20,7 @@ fn main() -> Result<(), core::convert::Infallible> {
         .build();
 
     let system = create_system();
-    let mut sysbadge = sysbadge::Sysbadge::new_with_system(display, &system);
+    let mut sysbadge = Sysbadge::new_with_system(display, system);
 
     sysbadge.draw().unwrap();
 
@@ -40,7 +40,7 @@ fn main() -> Result<(), core::convert::Infallible> {
     Ok(())
 }
 
-fn run_loop(mut window: Window, mut sysbadge: Sysbadge<SimulatorDisplay<BinaryColor>>) {
+fn run_loop(mut window: Window, mut sysbadge: Sysbadge<SimulatorDisplay<BinaryColor>, SystemVec>) {
     'running: loop {
         sysbadge.draw().expect("Failed to redraw screen");
         window.update(&sysbadge.display);
@@ -84,7 +84,7 @@ fn run_loop(mut window: Window, mut sysbadge: Sysbadge<SimulatorDisplay<BinaryCo
 
 fn run_buttons(
     mut window: Window,
-    mut sysbadge: Sysbadge<SimulatorDisplay<BinaryColor>>,
+    mut sysbadge: Sysbadge<SimulatorDisplay<BinaryColor>, SystemVec>,
     buttons: Vec<Button>,
 ) {
     for button in buttons {
@@ -116,11 +116,15 @@ fn convert_to_button(str: &str) -> Button {
     }
 }
 
-fn create_system() -> SystemUf2 {
-    let members = Box::new([
-        Member::new_str("Myriad", "they/them"),
-        Member::new_str("Tester T. Testington", ""),
-    ]);
-
-    SystemUf2::new_from_box("Example system".to_string().into_boxed_str(), members)
+fn create_system() -> SystemVec {
+    let mut system = SystemVec::new("PluralKit Example System".to_string());
+    system.members.push(sysbadge::system::MemberStrings {
+        name: "Myriad".to_string(),
+        pronouns: "they/them".to_string(),
+    });
+    system.members.push(sysbadge::system::MemberStrings {
+        name: "Tester T. Testington".to_string(),
+        pronouns: "".to_string(),
+    });
+    system
 }

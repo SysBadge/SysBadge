@@ -2,7 +2,7 @@ use pkrs::client::PkClient;
 use pkrs::model::PkId;
 use std::mem::MaybeUninit;
 use std::{mem, ptr};
-use sysbadge::system::{Member, SystemUf2};
+use sysbadge::system::{MemberUF2, SystemUf2, SystemVec};
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::spawn_local;
@@ -169,7 +169,7 @@ impl System {
 
         let name_addr = next_after::<u8>(mem::size_of::<SystemUf2>() as u32);
         let name_len = self.info.name.as_ref().map(String::len).unwrap_or(0) as u32;
-        let member_addr = next_after::<Member>(name_addr + name_len);
+        let member_addr = next_after::<MemberUF2>(name_addr + name_len);
         unsafe {
             ptr::copy_nonoverlapping(
                 (offset + name_addr).to_le_bytes().as_ptr(),
@@ -222,14 +222,14 @@ impl System {
 
     fn write_members(&self, offset: u32, vec: &mut Vec<u8>) {
         let mut start_addr = vec.len();
-        let member_bytes = mem::size_of::<Member>() * self.members.len();
+        let member_bytes = mem::size_of::<MemberUF2>() * self.members.len();
         let mut member_end = (start_addr + member_bytes) as u32;
         vec.extend(core::iter::repeat(0).take(member_bytes));
 
         for member in &self.members {
             member_end += Self::write_member(member_end + offset, start_addr, member, vec);
 
-            start_addr += mem::size_of::<Member>();
+            start_addr += mem::size_of::<MemberUF2>();
         }
     }
 
@@ -279,34 +279,27 @@ impl System {
     }
 
     #[cfg(feature = "badge")]
-    fn get_system(&self) -> SystemUf2 {
-        let mut members = Vec::new();
-        for member in &self.members {
-            members.push(Member::new_str(
-                member.name.as_ref(),
-                member.pronouns.clone().unwrap_or("".to_string()).as_str(),
-            ));
-        }
-        let members = members.into_boxed_slice();
-
-        SystemUf2::new_from_box(
+    fn get_system(&self) -> SystemVec {
+        let mut system = SystemVec::new(
             self.info
                 .name
                 .clone()
-                .unwrap_or("No system name".to_string())
-                .into_boxed_str(),
-            members,
-        )
+                .unwrap_or("no system name".to_string()),
+        );
+        for member in &self.members {
+            system.members.push(sysbadge::system::MemberStrings {
+                name: member.name.clone(),
+                pronouns: member.pronouns.clone().unwrap_or("".to_string()),
+            });
+        }
+        system
     }
 
     #[cfg(feature = "badge")]
     fn set_system(&self) {
-        let sys = self.get_system();
-
         unsafe {
-            crate::badge::SYSTEM = sys;
             let badge = crate::badge::SYSBADGE.as_mut().unwrap();
-            badge.system = &crate::badge::SYSTEM;
+            badge.system = self.get_system();
             badge.reset();
             badge.draw().unwrap();
             badge.display.flush().unwrap();
