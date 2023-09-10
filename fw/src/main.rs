@@ -31,8 +31,9 @@ use panic_probe as _;
 
 use uc8151::Uc8151;
 
+use sysbadge::badge::Sysbadge;
 use sysbadge::system::SystemUf2;
-use sysbadge::{Button, Sysbadge};
+use sysbadge::Button;
 
 pub enum UsbControl {
     GetMemberCount,

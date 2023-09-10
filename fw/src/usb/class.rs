@@ -12,7 +12,7 @@ use embassy_usb::{Builder, Handler};
 use crate::{RpFlashMutex, UsbControl, UsbResponse, USB_RESP};
 use sysbadge::usb::BootSel::Application;
 use sysbadge::usb::VersionType;
-use sysbadge::{usb as sysusb, CurrentMenu};
+use sysbadge::{badge::CurrentMenu, usb as sysusb};
 
 pub struct State {
     control: MaybeUninit<Control>,
@@ -97,10 +97,10 @@ impl Handler for Control {
                 Err(_) => OutResponse::Rejected,
             }),
             Ok(sysusb::Request::SetState)
-                if req.length == core::mem::size_of::<sysbadge::CurrentMenu>() as u16 =>
+                if req.length == core::mem::size_of::<CurrentMenu>() as u16 =>
             {
                 debug!("Received state");
-                defmt::assert!(data.len() >= core::mem::size_of::<sysbadge::CurrentMenu>());
+                defmt::assert!(data.len() >= core::mem::size_of::<CurrentMenu>());
 
                 let state = CurrentMenu::from_bytes(data);
 
@@ -226,10 +226,10 @@ impl Handler for Control {
                 }
             }
             Ok(sysusb::Request::GetState)
-                if req.length == core::mem::size_of::<sysbadge::CurrentMenu>() as u16 =>
+                if req.length == core::mem::size_of::<CurrentMenu>() as u16 =>
             {
                 debug!("Sending state");
-                defmt::assert!(buf.len() >= core::mem::size_of::<sysbadge::CurrentMenu>());
+                defmt::assert!(buf.len() >= core::mem::size_of::<CurrentMenu>());
 
                 let len = block_on(async {
                     let badge = self.badge.lock().await;

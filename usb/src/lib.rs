@@ -12,7 +12,7 @@ pub mod err;
 pub use err::{Error, Result};
 use sysbadge::system::Member;
 use sysbadge::usb::{BootSel, VersionType};
-use sysbadge::{CurrentMenu, System};
+use sysbadge::{badge::CurrentMenu, System};
 
 pub const VID: u16 = sysbadge::usb::VID;
 pub const PID: u16 = sysbadge::usb::PID;

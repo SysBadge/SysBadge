@@ -14,7 +14,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use sysbadge::usb::BootSel;
-use sysbadge::{Button, CurrentMenu, Select};
+use sysbadge::{
+    badge::{CurrentMenu, Select},
+    Button,
+};
 use sysbadge_usb::UsbSysbadge;
 
 use sysbadge_usb::{Error, Result};

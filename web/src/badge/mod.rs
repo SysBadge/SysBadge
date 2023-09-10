@@ -1,7 +1,7 @@
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics_web_simulator::display::WebSimulatorDisplay;
+use sysbadge::badge::Sysbadge;
 use sysbadge::system::{MemberUF2, SystemUf2, SystemVec};
-use sysbadge::Sysbadge;
 use wasm_bindgen::prelude::*;
 use web_sys::{console, Document};
 

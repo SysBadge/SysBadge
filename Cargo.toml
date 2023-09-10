@@ -10,6 +10,7 @@ authors = [ "Finn Behrens <me@kloenk.dev>" ]
 default = [ ]
 simulator = [ ]
 invert = [ ]
+updater = [ "dep:pkrs" ]
 wasm = [ "dep:wasm-bindgen" ]
 defmt = [ "dep:defmt" ]
 
@@ -24,6 +25,9 @@ crc16 = "0.4.0"
 embedded-graphics = "0.8"
 uc8151 = { version = "0.2" }
 profont = "0.7.0"
+
+# updater
+pkrs = { version = "0.3", optional = true }
 
 wasm-bindgen = { version = "=0.2.87", optional = true }
 

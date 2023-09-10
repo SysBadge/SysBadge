@@ -2514,6 +2514,7 @@ dependencies = [
  "embedded-graphics",
  "fugit",
  "nb 1.1.0",
+ "pkrs",
  "profont",
  "uc8151",
  "wasm-bindgen",

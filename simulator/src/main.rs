@@ -8,7 +8,7 @@ use embedded_graphics_simulator::{
     Window,
 };
 use sysbadge::system::{MemberUF2, SystemUf2, SystemVec};
-use sysbadge::{Button, Sysbadge};
+use sysbadge::{badge::Sysbadge, Button};
 
 fn main() -> Result<(), core::convert::Infallible> {
     let mut display =
