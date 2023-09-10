@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::time::Duration;
 
-use crate::components::{HeaderModel, HeaderOutput};
+use crate::components::{HeaderInput, HeaderModel, HeaderOutput};
 use anyhow::{Context, Result};
 use gtk::prelude::*;
 use log::*;
@@ -21,7 +21,7 @@ use relm4::{
 use sysbadge_usb::rusb::{DeviceHandle, UsbContext};
 use sysbadge_usb::{rusb, UsbSysbadge};
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 enum AppMode {
     View,
     Edit,
@@ -55,7 +55,16 @@ impl App {
         let mut badge = UsbSysbadge::open(handle)?;
 
         let name = badge.system_name()?;
+        let name = format!(
+            "{} ({}:{})",
+            name,
+            badge.handle().device().bus_number(),
+            badge.handle().device().address()
+        );
         info!("Got new badge for {}", name);
+        if let Err(e) = self.header.sender().send(HeaderInput::Add(name.clone())) {
+            warn!("Failed to send header input: {:?}", e);
+        }
 
         self.badges.insert(name, badge);
 
@@ -84,13 +93,24 @@ impl AsyncComponent for App {
             set_default_height: 250,
             set_titlebar: Some(model.header.widget()),
 
-            gtk::Label {
-                #[watch]
-                set_label: &format!("Placeholder for {:?}", model.tab),
+            gtk::CenterBox {
+                set_hexpand: true,
+                set_vexpand: true,
+
+                #[wrap(Some)]
+                set_center_widget = match *(&model.tab) {
+                    AppMode::View => gtk::Label {
+                        set_label: "View",
+                    },
+                    _ => gtk::Label {
+                        set_label: "Placeholder",
+                    }
+                },
             },
+
             connect_close_request[sender] => move |_| {
                 // TODO: sender.input(AppMsg::CloseRequest);
-                gtk::Inhibit(true)
+                gtk::Inhibit(false)
             }
         }
     }
@@ -139,6 +159,7 @@ impl AsyncComponent for App {
             usb::run(usb_sender);
         });
 
+        let state = &model.tab;
         // Insert the code generation of the view! macro here
         let widgets = view_output!();
 

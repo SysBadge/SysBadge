@@ -9,8 +9,9 @@ pub use rusb;
 pub mod err;
 
 pub use err::{Error, Result};
+use sysbadge::system::Member;
 use sysbadge::usb::{BootSel, VersionType};
-use sysbadge::CurrentMenu;
+use sysbadge::{CurrentMenu, System};
 
 pub const VID: u16 = sysbadge::usb::VID;
 pub const PID: u16 = sysbadge::usb::PID;
@@ -41,7 +42,7 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Self::open(handle)
     }
 
-    pub fn press(&mut self, button: sysbadge::Button) -> Result {
+    pub fn press(&self, button: sysbadge::Button) -> Result {
         self.handle.write_control(
             constants::LIBUSB_ENDPOINT_OUT
                 | constants::LIBUSB_REQUEST_TYPE_VENDOR
@@ -56,9 +57,9 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Ok(())
     }
 
-    pub fn system_name(&mut self) -> Result<String> {
+    pub fn system_name(&self) -> Result<String> {
         let mut buf = [0; 64];
-        self.handle.read_control(
+        let n = self.handle.read_control(
             constants::LIBUSB_ENDPOINT_IN
                 | constants::LIBUSB_REQUEST_TYPE_VENDOR
                 | constants::LIBUSB_RECIPIENT_INTERFACE,
@@ -69,10 +70,10 @@ impl<T: UsbContext> UsbSysbadge<T> {
             self.timeout,
         )?;
 
-        Ok(String::from_utf8(buf.to_vec())?)
+        Ok(String::from_utf8((&buf[..n]).to_vec())?)
     }
 
-    pub fn member_count(&mut self) -> Result<u16> {
+    pub fn member_count(&self) -> Result<u16> {
         let mut buf = [0; 2];
         self.handle.read_control(
             constants::LIBUSB_ENDPOINT_IN
@@ -89,9 +90,9 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Ok(count)
     }
 
-    pub fn member_name(&mut self, index: u16) -> Result<String> {
+    pub fn member_name(&self, index: u16) -> Result<String> {
         let mut buf = [0; 64];
-        self.handle.read_control(
+        let n = self.handle.read_control(
             constants::LIBUSB_ENDPOINT_IN
                 | constants::LIBUSB_REQUEST_TYPE_VENDOR
                 | constants::LIBUSB_RECIPIENT_INTERFACE,
@@ -102,10 +103,10 @@ impl<T: UsbContext> UsbSysbadge<T> {
             self.timeout,
         )?;
 
-        Ok(String::from_utf8(buf.to_vec())?)
+        Ok(String::from_utf8((&buf[..n]).to_vec())?)
     }
 
-    pub fn member_pronouns(&mut self, index: u16) -> Result<String> {
+    pub fn member_pronouns(&self, index: u16) -> Result<String> {
         let mut buf = [0; 64];
         self.handle.read_control(
             constants::LIBUSB_ENDPOINT_IN
@@ -118,10 +119,10 @@ impl<T: UsbContext> UsbSysbadge<T> {
             self.timeout,
         )?;
 
-        Ok(String::from_utf8(buf.to_vec())?)
+        Ok(String::from_utf8((&buf[..n]).to_vec())?)
     }
 
-    pub fn get_state(&mut self) -> Result<CurrentMenu> {
+    pub fn get_state(&self) -> Result<CurrentMenu> {
         let mut buf = [0; core::mem::size_of::<CurrentMenu>()];
         self.handle.read_control(
             constants::LIBUSB_ENDPOINT_IN
@@ -137,7 +138,7 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Ok(CurrentMenu::from_bytes(&buf))
     }
 
-    pub fn set_state(&mut self, state: &CurrentMenu) -> Result {
+    pub fn set_state(&self, state: &CurrentMenu) -> Result {
         let buf = state.as_bytes();
         self.handle.write_control(
             constants::LIBUSB_ENDPOINT_OUT
@@ -153,7 +154,7 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Ok(())
     }
 
-    pub fn update_display(&mut self) -> Result {
+    pub fn update_display(&self) -> Result {
         self.handle.write_control(
             constants::LIBUSB_ENDPOINT_OUT
                 | constants::LIBUSB_REQUEST_TYPE_VENDOR
@@ -168,9 +169,9 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Ok(())
     }
 
-    pub fn get_version(&mut self, version: VersionType) -> Result<[u8; 64]> {
+    pub fn get_version(&self, version: VersionType) -> Result<[u8; 64]> {
         let mut buf = [0; 64];
-        self.handle.read_control(
+        let n = self.handle.read_control(
             constants::LIBUSB_ENDPOINT_IN
                 | constants::LIBUSB_REQUEST_TYPE_VENDOR
                 | constants::LIBUSB_RECIPIENT_INTERFACE,
@@ -183,18 +184,18 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Ok(buf)
     }
 
-    pub fn get_version_string(&mut self, version: VersionType) -> Result<String> {
+    pub fn get_version_string(&self, version: VersionType) -> Result<String> {
         let buf = self.get_version(version)?;
         Ok(String::from_utf8(buf.to_vec())?)
     }
 
-    pub fn get_unique_id(&mut self) -> Result<u64> {
+    pub fn get_unique_id(&self) -> Result<u64> {
         let buf = self.get_version(VersionType::UniqueId)?;
         let id = u64::from_le_bytes(buf[..8].as_ref().try_into().unwrap());
         Ok(id)
     }
 
-    pub fn reboot(&mut self, bootsel: BootSel) -> Result<()> {
+    pub fn reboot(&self, bootsel: BootSel) -> Result<()> {
         self.handle.write_control(
             constants::LIBUSB_ENDPOINT_OUT
                 | constants::LIBUSB_REQUEST_TYPE_VENDOR
@@ -241,3 +242,17 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Ok(None)
     }
 }
+
+/*impl<T: UsbContext> System for UsbSysbadge<T> {
+    fn name(&self) -> &str {
+        todo!()
+    }
+
+    fn member_count(&self) -> usize {
+        self.member_count().unwrap_or(0) as usize
+    }
+
+    fn member(&self, index: usize) -> &dyn Member {
+        todo!()
+    }
+}*/
