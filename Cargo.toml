@@ -7,12 +7,13 @@ authors = [ "Finn Behrens <me@kloenk.dev>" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = [ ]
+default = [ "uf2" ]
 simulator = [ ]
 invert = [ ]
-updater = [ "dep:pkrs" ]
+updater = [ "dep:pkrs", "dep:reqwest" ]
 wasm = [ "dep:wasm-bindgen" ]
 defmt = [ "dep:defmt" ]
+uf2 = [ ]
 
 [dependencies]
 defmt = { version = "0.3", features = ["alloc"], optional = true }
@@ -28,6 +29,7 @@ profont = "0.7.0"
 
 # updater
 pkrs = { version = "0.3", optional = true }
+reqwest = { version = "0.11", optional = true }
 
 wasm-bindgen = { version = "=0.2.87", optional = true }
 

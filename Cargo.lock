@@ -2516,6 +2516,7 @@ dependencies = [
  "nb 1.1.0",
  "pkrs",
  "profont",
+ "reqwest",
  "uc8151",
  "wasm-bindgen",
 ]
@@ -2578,7 +2579,6 @@ dependencies = [
  "pkrs",
  "reqwest",
  "sysbadge",
- "uf2",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -2788,15 +2788,6 @@ checksum = "7e687ace367a0f0cdc6e7c5e12a84c073569548fba61bf02cae9f18310c13e81"
 dependencies = [
  "embedded-graphics-core",
  "embedded-hal 0.2.7",
-]
-
-[[package]]
-name = "uf2"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9d2170c4ff397bd04c01f61728fe61f81efed581abc90dd3d48bdb5417d5384"
-dependencies = [
- "byteorder",
 ]
 
 [[package]]

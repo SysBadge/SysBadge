@@ -98,21 +98,13 @@ pub struct SystemUf2 {
     pub(crate) crc16: u16,
 }
 
-#[cfg(feature = "simulator")]
 impl SystemUf2 {
     pub const ZERO: Self = Self {
         name: U32PtrRepr::from_raw_parts(0, 0),
         members: U32PtrRepr::from_raw_parts(0, 0),
         crc16: 0,
     };
-    /*pub const ZERO: Self = Self {
-        name: unsafe { ptr::from_raw_parts_mut(ptr::null_mut(), 0) },
-        members: unsafe { ptr::from_raw_parts_mut(ptr::null_mut(), 0) },
-        crc16: 0,
-    };*/
-}
 
-impl SystemUf2 {
     #[inline(always)]
     pub fn name(&self) -> &str {
         // SAFETY: type invariant
