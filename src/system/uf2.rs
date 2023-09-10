@@ -22,8 +22,16 @@ pub struct U32PtrRepr<T: U32Pointee + ?Sized> {
 }
 
 impl<T: U32Pointee + ?Sized> U32PtrRepr<T> {
-    pub fn from_raw_parts(addr: u32, metadata: <T as U32Pointee>::Metadata) -> Self {
+    pub const fn from_raw_parts(addr: u32, metadata: <T as U32Pointee>::Metadata) -> Self {
         Self { addr, metadata }
+    }
+
+    pub const fn addr(&self) -> u32 {
+        self.addr
+    }
+
+    pub const fn metadata(&self) -> <T as U32Pointee>::Metadata {
+        self.metadata
     }
 }
 
@@ -45,11 +53,16 @@ impl<T: U32Pointee<Metadata = u32> + ptr::Pointee<Metadata = usize> + ?Sized> U3
 // - `pronouns` has to be valid utf8
 #[repr(C)]
 pub struct MemberUF2 {
-    name: U32PtrRepr<str>,
-    pronouns: U32PtrRepr<str>,
+    pub(crate) name: U32PtrRepr<str>,
+    pub(crate) pronouns: U32PtrRepr<str>,
 }
 
 impl MemberUF2 {
+    pub const ZERO: Self = Self {
+        name: U32PtrRepr::from_raw_parts(0, 0),
+        pronouns: U32PtrRepr::from_raw_parts(0, 0),
+    };
+
     #[inline(always)]
     pub fn name(&self) -> &str {
         // SAFETY: type invariant
@@ -80,13 +93,18 @@ impl Member for MemberUF2 {
 // - `members` has to point to a valid member array
 #[repr(C)]
 pub struct SystemUf2 {
-    name: U32PtrRepr<str>,
-    members: U32PtrRepr<[MemberUF2]>,
-    crc16: u16,
+    pub(crate) name: U32PtrRepr<str>,
+    pub(crate) members: U32PtrRepr<[MemberUF2]>,
+    pub(crate) crc16: u16,
 }
 
 #[cfg(feature = "simulator")]
 impl SystemUf2 {
+    pub const ZERO: Self = Self {
+        name: U32PtrRepr::from_raw_parts(0, 0),
+        members: U32PtrRepr::from_raw_parts(0, 0),
+        crc16: 0,
+    };
     /*pub const ZERO: Self = Self {
         name: unsafe { ptr::from_raw_parts_mut(ptr::null_mut(), 0) },
         members: unsafe { ptr::from_raw_parts_mut(ptr::null_mut(), 0) },
