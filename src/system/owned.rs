@@ -21,6 +21,7 @@ impl SystemVec {
     }
 
     #[cfg(any(feature = "updater", doc))]
+    #[inline]
     pub async fn fetch_pk(id: &str) -> Result<Self, reqwest::Error> {
         Updater::new().get(id).await
     }

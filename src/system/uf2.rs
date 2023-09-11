@@ -3,6 +3,8 @@ use crate::System;
 use alloc::borrow::Cow;
 use core::ptr;
 
+pub const MAGIC: u32 = 0xa2b5;
+
 pub trait U32Pointee: ptr::Pointee {
     type Metadata: Copy + Send + Sync + Ord + core::hash::Hash + Unpin;
 }
@@ -93,15 +95,19 @@ impl Member for MemberUF2 {
 // - `members` has to point to a valid member array
 #[repr(C)]
 pub struct SystemUf2 {
+    pub(crate) magic: u32,
     pub(crate) name: U32PtrRepr<str>,
     pub(crate) members: U32PtrRepr<[MemberUF2]>,
+    pub(crate) reserved: [u8; 42],
     pub(crate) crc16: u16,
 }
 
 impl SystemUf2 {
     pub const ZERO: Self = Self {
+        magic: MAGIC,
         name: U32PtrRepr::from_raw_parts(0, 0),
         members: U32PtrRepr::from_raw_parts(0, 0),
+        reserved: [0; 42],
         crc16: 0,
     };
 

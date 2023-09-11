@@ -1,6 +1,8 @@
 mod owned;
 mod uf2;
 
+#[cfg(feature = "updater")]
+pub use owned::Updater;
 pub use owned::{MemberStrings, SystemVec};
 pub use uf2::*;
 
