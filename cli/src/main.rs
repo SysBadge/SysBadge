@@ -62,7 +62,8 @@ async fn main() {
             let mut client = sysbadge::system::Updater::new();
             client.client.user_agent = "SysBadge CLI".to_string();
 
-            let system = client.get(id).await.unwrap();
+            let mut system = client.get(id).await.unwrap();
+            system.sort_members();
 
             let mut output = match output {
                 Some(output) => output.clone(),

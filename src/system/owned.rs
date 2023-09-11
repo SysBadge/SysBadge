@@ -1,19 +1,19 @@
 use crate::system::{Member, MemberUF2, SystemUf2, U32PtrRepr};
 use crate::System;
 use alloc::borrow::Cow;
-use alloc::string::ToString;
+use alloc::string::{String, ToString};
 use core::{mem, ptr};
 
 /// Owned system utilizing a vec to hold members.
 pub struct SystemVec {
     /// Name of the system
-    pub name: alloc::string::String,
+    pub name: String,
     /// Vector of members
     pub members: alloc::vec::Vec<MemberStrings>,
 }
 
 impl SystemVec {
-    pub fn new(name: alloc::string::String) -> Self {
+    pub fn new(name: String) -> Self {
         Self {
             name,
             members: alloc::vec::Vec::new(),
@@ -24,6 +24,10 @@ impl SystemVec {
     #[inline]
     pub async fn fetch_pk(id: &str) -> Result<Self, reqwest::Error> {
         Updater::new().get(id).await
+    }
+
+    pub fn sort_members(&mut self) {
+        self.members.sort_by(|a, b| a.name.cmp(&b.name));
     }
 }
 
@@ -165,8 +169,8 @@ impl System for SystemVec {
 }
 
 pub struct MemberStrings {
-    pub name: alloc::string::String,
-    pub pronouns: alloc::string::String,
+    pub name: String,
+    pub pronouns: String,
 }
 
 impl Member for MemberStrings {
@@ -203,13 +207,38 @@ impl Updater {
         let mut system = SystemVec::new(info.name.unwrap_or("no system name".to_string()));
         for member in members {
             system.members.push(MemberStrings {
-                name: member.name,
+                name: transform_name(&member.display_name.unwrap_or_else(|| member.name)),
                 pronouns: member.pronouns.unwrap_or("".to_string()),
             });
         }
 
         Ok(system)
     }
+}
+
+fn transform_name(input: &str) -> String {
+    // Convert the input string to bytes
+    let bytes = input.as_bytes();
+
+    // Find the index of the first occurrence of more than 2 spaces or a tab
+    let index = bytes.iter().enumerate().position(|(idx, &c)| {
+        (c == b' ' && bytes.iter().skip(idx).take(3).all(|&x| x == b' ')) || c == b'\t'
+    });
+
+    // If such an index is found, truncate the input string at that position, else use the original input
+    let filtered_input = match index {
+        Some(idx) => &input[..idx],
+        None => input,
+    };
+
+    // Filter out non-ASCII characters and create an iterator of chars
+    let ascii_chars: String = filtered_input.chars().filter(|c| c.is_ascii()).collect();
+
+    // Trim leading and trailing whitespace
+    let trimmed_ascii = ascii_chars.trim();
+
+    // Convert the trimmed string to a new String
+    String::from(trimmed_ascii)
 }
 
 #[cfg(feature = "uf2")]
