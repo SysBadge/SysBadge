@@ -55,6 +55,7 @@ impl SystemVec {
             next_after::<MemberUF2>(system.name.addr() + system.name.metadata()),
             self.members.len() as u32,
         );
+        system.finish();
 
         buf.extend(core::iter::repeat(0).take((system.members.addr() - offset) as usize));
         unsafe {

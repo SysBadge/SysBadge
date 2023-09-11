@@ -4,6 +4,7 @@ use alloc::borrow::Cow;
 use core::ptr;
 
 pub const MAGIC: u32 = 0xa2b5;
+pub const VERSION_1: u16 = 0x0001;
 
 pub trait U32Pointee: ptr::Pointee {
     type Metadata: Copy + Send + Sync + Ord + core::hash::Hash + Unpin;
@@ -96,18 +97,22 @@ impl Member for MemberUF2 {
 #[repr(C)]
 pub struct SystemUf2 {
     pub(crate) magic: u32,
+    pub(crate) version: u16,
+    pub(crate) reserved: u16,
     pub(crate) name: U32PtrRepr<str>,
     pub(crate) members: U32PtrRepr<[MemberUF2]>,
-    pub(crate) reserved: [u8; 42],
+    pub(crate) reserved_bytes: [u8; 38],
     pub(crate) crc16: u16,
 }
 
 impl SystemUf2 {
     pub const ZERO: Self = Self {
-        magic: MAGIC,
+        magic: MAGIC.to_le(),
+        version: VERSION_1.to_le(),
+        reserved: 0,
         name: U32PtrRepr::from_raw_parts(0, 0),
         members: U32PtrRepr::from_raw_parts(0, 0),
-        reserved: [0; 42],
+        reserved_bytes: [0; 38],
         crc16: 0,
     };
 
@@ -132,6 +137,45 @@ impl SystemUf2 {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    // Version 1 only checks the crc16 of self, not any members or strings
+    #[inline]
+    fn build_crc16_1(&self) -> u16 {
+        let mut crc: crc16::State<crc16::BUYPASS> = crc16::State::new();
+        let bytes = unsafe {
+            core::slice::from_raw_parts(
+                self as *const _ as *const u8,
+                core::mem::size_of::<Self>() - 2,
+            )
+        };
+        crc.update(bytes);
+        crc.get()
+    }
+
+    fn build_crc16(&self) -> u16 {
+        match self.version {
+            VERSION_1 => self.build_crc16_1(),
+            _ => unimplemented!(),
+        }
+    }
+
+    fn check_crc16(&self) -> bool {
+        let got = self.build_crc16();
+
+        #[cfg(all(debug_assertions, feature = "defmt"))]
+        defmt::trace!("crc16: {=u16}, got: {=u16}", self.crc16, got);
+
+        #[cfg(debug_assertions)]
+        if self.crc16 != got {
+            panic!("Failed to verify crc16");
+        }
+
+        self.crc16 == got
+    }
+
+    pub fn finish(&mut self) {
+        self.crc16 = self.build_crc16();
+    }
 }
 
 impl System for SystemUf2 {
@@ -145,6 +189,10 @@ impl System for SystemUf2 {
 
     fn member(&self, index: usize) -> &dyn Member {
         &self.members()[index]
+    }
+
+    fn is_valid(&self) -> bool {
+        self.magic == MAGIC && self.version == VERSION_1 && self.check_crc16()
     }
 }
 

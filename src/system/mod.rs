@@ -27,6 +27,13 @@ pub trait System {
     fn name(&self) -> Cow<'_, str>;
     fn member_count(&self) -> usize;
     fn member(&self, index: usize) -> &dyn Member;
+
+    /// Function to validate the system.
+    ///
+    /// This returns true in the default implementation, assuming a system cannot be invalid.
+    fn is_valid(&self) -> bool {
+        true
+    }
 }
 
 impl<S: System> System for &S {
@@ -40,5 +47,9 @@ impl<S: System> System for &S {
 
     fn member(&self, index: usize) -> &dyn Member {
         (*self).member(index)
+    }
+
+    fn is_valid(&self) -> bool {
+        (*self).is_valid()
     }
 }

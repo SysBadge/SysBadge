@@ -234,6 +234,7 @@ pub enum CurrentMenu {
     SystemName,
     Version,
     Member(CurrentMembers),
+    InvalidSystem,
 }
 
 impl CurrentMenu {
@@ -248,8 +249,10 @@ impl CurrentMenu {
                 *self = Self::SystemName
             }
             Self::Member(c) => c.button_press(button, members),
+            Self::InvalidSystem => (),
             _ => {
-                //defmt::warn!("Unhandled button press: {:?}", button)
+                #[cfg(feature = "defmt")]
+                defmt::warn!("Unhandled button press: {:?}", button)
             }
         }
     }
@@ -304,11 +307,17 @@ where
     S: System,
 {
     pub fn new_with_system(display: D, system: S) -> Self {
+        let current = if system.is_valid() {
+            CurrentMenu::SystemName
+        } else {
+            CurrentMenu::InvalidSystem
+        };
+
         Self {
             display,
             system,
             serial: None,
-            current: CurrentMenu::SystemName,
+            current,
             hash: 0,
         }
     }
@@ -338,6 +347,7 @@ where
     pub fn force_draw(&mut self) -> DrawResult<D> {
         self.display.clear(BINARY_COLOR_OFF.into())?;
         match self.current {
+            CurrentMenu::InvalidSystem => self.draw_invalid_system(),
             CurrentMenu::SystemName => self.draw_system_name(),
             CurrentMenu::Version => self.draw_version(),
             CurrentMenu::Member(ref cur) => cur.draw(&self.system, &mut self.display),
@@ -392,29 +402,12 @@ where
         )
         .draw(&mut self.display)?;
 
-        let point =
-            Text::with_alignment("Version: ", Point::new(5, 60), text_style, Alignment::Left)
-                .draw(&mut self.display)?;
-        Text::with_alignment(
-            env!("CARGO_PKG_VERSION"),
-            point,
-            text_style,
-            Alignment::Left,
-        )
-        .draw(&mut self.display)?;
+        self.draw_version_and_serial(Point::new(5, 60))?;
 
         let text_style = MonoTextStyle::new(
             &embedded_graphics::mono_font::ascii::FONT_9X18,
             BINARY_COLOR_ON.into(),
         );
-
-        if let Some(serial) = &self.serial {
-            let point =
-                Text::with_alignment("Serial: ", Point::new(5, 90), text_style, Alignment::Left)
-                    .draw(&mut self.display)?;
-            Text::with_alignment(serial, point, text_style, Alignment::Left)
-                .draw(&mut self.display)?;
-        }
 
         Text::with_alignment(
             concat!(
@@ -433,6 +426,61 @@ where
             Alignment::Left,
         )
         .draw(&mut self.display)?;
+
+        Ok(())
+    }
+
+    fn draw_version_and_serial(&mut self, start: Point) -> DrawResult<D> {
+        let text_style = MonoTextStyle::new(
+            &embedded_graphics::mono_font::ascii::FONT_10X20,
+            BINARY_COLOR_ON.into(),
+        );
+
+        let point = Text::with_alignment("Version: ", start, text_style, Alignment::Left)
+            .draw(&mut self.display)?;
+        Text::with_alignment(
+            env!("CARGO_PKG_VERSION"),
+            point,
+            text_style,
+            Alignment::Left,
+        )
+        .draw(&mut self.display)?;
+
+        let text_style = MonoTextStyle::new(
+            &embedded_graphics::mono_font::ascii::FONT_9X18,
+            BINARY_COLOR_ON.into(),
+        );
+
+        if let Some(serial) = &self.serial {
+            let point = Text::with_alignment(
+                "Serial: ",
+                start + Point::new(0, 30),
+                text_style,
+                Alignment::Left,
+            )
+            .draw(&mut self.display)?;
+            Text::with_alignment(serial, point, text_style, Alignment::Left)
+                .draw(&mut self.display)?;
+        }
+
+        Ok(())
+    }
+
+    fn draw_invalid_system(&mut self) -> DrawResult<D> {
+        let text_style = MonoTextStyle::new(
+            &embedded_graphics::mono_font::ascii::FONT_10X20,
+            BINARY_COLOR_ON.into(),
+        );
+
+        Text::with_alignment(
+            "System Data Invalid",
+            self.display.bounding_box().center().x_axis() + Point::new(0, 40),
+            text_style,
+            Alignment::Center,
+        )
+        .draw(&mut self.display)?;
+
+        self.draw_version_and_serial(Point::new(5, 75))?;
 
         Ok(())
     }
