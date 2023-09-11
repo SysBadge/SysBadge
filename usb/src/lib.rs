@@ -1,9 +1,10 @@
 use log::info;
 use rusb::{
-    constants, Device, DeviceDescriptor, DeviceHandle, Hotplug, HotplugBuilder, Registration,
-    UsbContext,
+    constants, Context, Device, DeviceDescriptor, DeviceHandle, Hotplug, HotplugBuilder,
+    Registration, UsbContext,
 };
 use std::borrow::Cow;
+use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 
 pub use rusb;
@@ -17,7 +18,7 @@ use sysbadge::{badge::CurrentMenu, System};
 pub const VID: u16 = sysbadge::usb::VID;
 pub const PID: u16 = sysbadge::usb::PID;
 
-pub struct UsbSysbadge<T: UsbContext> {
+pub struct UsbSysbadge<T: UsbContext = Context> {
     context: T,
     handle: DeviceHandle<T>,
     timeout: std::time::Duration,
@@ -255,5 +256,14 @@ impl<T: UsbContext> System for UsbSysbadge<T> {
 
     fn member(&self, index: usize) -> &dyn Member {
         todo!()
+    }
+}
+
+impl<T: UsbContext> Debug for UsbSysbadge<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UsbSysbadge")
+            .field("handle", &self.handle)
+            .field("timeout", &self.timeout)
+            .finish()
     }
 }
