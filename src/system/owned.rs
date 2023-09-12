@@ -8,6 +8,8 @@ use core::{mem, ptr};
 pub struct SystemVec {
     /// Name of the system
     pub name: String,
+    /// Optional Pluralkit id
+    pub hid: Option<String>,
     /// Vector of members
     pub members: alloc::vec::Vec<MemberStrings>,
 }
@@ -16,6 +18,7 @@ impl SystemVec {
     pub fn new(name: String) -> Self {
         Self {
             name,
+            hid: None,
             members: alloc::vec::Vec::new(),
         }
     }
@@ -55,6 +58,11 @@ impl SystemVec {
             next_after::<MemberUF2>(system.name.addr() + system.name.metadata()),
             self.members.len() as u32,
         );
+        self.hid.as_ref().map(|s| {
+            system.hid = [0; 6];
+            let len = core::cmp::min(6, s.as_bytes().len());
+            (&mut system.hid[..len]).copy_from_slice(&s.as_bytes()[..len]);
+        });
         system.finish();
 
         buf.extend(core::iter::repeat(0).take((system.members.addr() - offset) as usize));
@@ -206,6 +214,7 @@ impl Updater {
         let members = self.client.get_system_members(&id).await?;
 
         let mut system = SystemVec::new(info.name.unwrap_or("no system name".to_string()));
+        system.hid = Some(id.to_string());
         for member in members {
             system.members.push(MemberStrings {
                 name: transform_name(&member.display_name.unwrap_or_else(|| member.name)),

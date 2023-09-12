@@ -152,25 +152,25 @@ impl Handler for Control {
             Ok(sysusb::Request::GetSystemName) => {
                 debug!("Sending system name");
 
-                let offset = req.value as usize;
+                let out = match req.value {
+                    0 => block_on(async {
+                        let badge = self.badge.lock().await;
+                        badge.system.name()
+                    })
+                    .as_bytes(),
+                    1 => block_on(async {
+                        let badge = self.badge.lock().await;
+                        badge.system.hid()
+                    }),
+                    _ => return Some(InResponse::Rejected),
+                };
 
-                let name = block_on(async {
-                    let badge = self.badge.lock().await;
-                    let name = badge.system.name();
-                    if offset >= name.len() {
-                        return None;
-                    }
-
-                    let len = core::cmp::min(buf.len(), name.len() - offset);
-                    Some(&name.as_bytes()[offset..len])
-                });
-
-                if let Some(name) = name {
-                    buf[..name.len()].copy_from_slice(name);
-                    Some(InResponse::Accepted(&buf[..name.len()]))
-                } else {
-                    Some(InResponse::Rejected)
+                if buf.len() < out.len() {
+                    return Some(InResponse::Rejected);
                 }
+
+                buf[..out.len()].copy_from_slice(out);
+                Some(InResponse::Accepted(&buf[..out.len()]))
             }
             Ok(sysusb::Request::GetMemberCount) if req.length == 2 => {
                 debug!("Sending member count");

@@ -101,7 +101,8 @@ pub struct SystemUf2 {
     pub(crate) reserved: u16,
     pub(crate) name: U32PtrRepr<str>,
     pub(crate) members: U32PtrRepr<[MemberUF2]>,
-    pub(crate) reserved_bytes: [u8; 38],
+    pub(crate) hid: [u8; 6],
+    pub(crate) reserved_bytes: [u8; 32],
     pub(crate) crc16: u16,
 }
 
@@ -112,7 +113,8 @@ impl SystemUf2 {
         reserved: 0,
         name: U32PtrRepr::from_raw_parts(0, 0),
         members: U32PtrRepr::from_raw_parts(0, 0),
-        reserved_bytes: [0; 38],
+        hid: [0; 6],
+        reserved_bytes: [0; 32],
         crc16: 0,
     };
 
@@ -136,6 +138,11 @@ impl SystemUf2 {
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    #[inline(always)]
+    pub fn hid(&self) -> &[u8; 6] {
+        &self.hid
     }
 
     // Version 1 only checks the crc16 of self, not any members or strings
