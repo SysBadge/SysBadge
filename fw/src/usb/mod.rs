@@ -2,20 +2,22 @@ mod class;
 
 use defmt::*;
 use embassy_executor::Spawner;
+use embassy_rp::peripherals;
 use embassy_rp::usb::{Driver, InterruptHandler};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_usb::{Builder, Config};
+use static_cell::make_static;
 
 use sysbadge::usb as sysusb;
 
 embassy_rp::bind_interrupts!(struct Irqs {
-    USBCTRL_IRQ => InterruptHandler<embassy_rp::peripherals::USB>;
+    USBCTRL_IRQ => InterruptHandler<peripherals::USB>;
 });
 
 #[embassy_executor::task]
 pub async fn init(
-    _spawner: Spawner,
+    spawner: Spawner,
     badge: &'static Mutex<CriticalSectionRawMutex, crate::SysbadgeUc8151<'static>>,
     flash: &'static crate::RpFlashMutex<'static>,
 ) {
@@ -32,7 +34,8 @@ pub async fn init(
         );
         out
     };
-    let serial = unsafe { core::str::from_utf8_unchecked(&serial) };
+    let serial = make_static!(serial);
+    let serial: &'static str = unsafe { core::str::from_utf8_unchecked(serial) };
 
     // Create config
     let mut config = Config::new(sysusb::VID, sysusb::PID);
@@ -47,29 +50,23 @@ pub async fn init(
     config.device_protocol = 0x01;
     config.composite_with_iads = true;
 
-    // Create embassy-usb DeviceBuilder using the driver and config.
-    // It needs some buffers for building the descriptors.
-    let mut device_descriptor = [0; 256];
-    let mut config_descriptor = [0; 256];
-    let mut bos_descriptor = [0; 256];
-    let mut control_buf = [0; 64];
-
-    let mut state = class::State::new(badge, flash);
-
     let mut builder = Builder::new(
         driver,
         config,
-        &mut device_descriptor,
-        &mut config_descriptor,
-        &mut bos_descriptor,
-        &mut control_buf,
+        &mut make_static!([0; 256])[..],
+        &mut make_static!([0; 256])[..],
+        &mut make_static!([0; 256])[..],
+        &mut make_static!([0; 128])[..],
     );
 
-    let _class = class::SysbadgeClass::new(&mut builder, &mut state, 64);
+    let _class = class::SysbadgeClass::new(
+        &mut builder,
+        make_static!(class::State::new(badge, flash)),
+        64,
+    );
 
-    let mut usb = builder.build();
-
-    let usb_fut = usb.run();
+    let usb = builder.build();
+    unwrap!(spawner.spawn(usb_task(usb)));
 
     /*let task_fut = async {
         /*loop {
@@ -82,7 +79,13 @@ pub async fn init(
     };
 
     embassy_futures::join::join(usb_fut, task_fut).await;*/
-    usb_fut.await;
+}
+
+#[embassy_executor::task]
+async fn usb_task(
+    mut device: embassy_usb::UsbDevice<'static, Driver<'static, peripherals::USB>>,
+) -> ! {
+    device.run().await
 }
 
 /*
