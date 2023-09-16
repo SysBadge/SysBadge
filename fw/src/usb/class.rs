@@ -124,8 +124,8 @@ impl Handler for Control {
             }
             Ok(sysusb::Request::Reboot) => match sysusb::BootSel::try_from(req.value as u8) {
                 Ok(Application) => {
-                    warn!("Not yet supported");
-                    Some(OutResponse::Rejected)
+                    cortex_m::peripheral::SCB::sys_reset();
+                    Some(OutResponse::Accepted)
                 }
                 Ok(v) => {
                     let mask = v.disable_interface_mask().unwrap();
