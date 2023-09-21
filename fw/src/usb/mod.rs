@@ -1,4 +1,5 @@
 mod class;
+mod web;
 
 use defmt::*;
 use embassy_executor::Spawner;
@@ -9,8 +10,8 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_usb::class::cdc_ncm::embassy_net::{Device, Runner, State as NetState};
 use embassy_usb::{Builder, Config};
-use static_cell::make_static;
 use embedded_io_async::Write;
+use static_cell::make_static;
 
 use sysbadge::usb as sysusb;
 
@@ -108,47 +109,8 @@ pub async fn init(
     ));
 
     unwrap!(spawner.spawn(net_task(stack)));
+    unwrap!(spawner.spawn(web::web_server_task(stack, badge)));
 
-    let mut rx_buffer = [0; 4096];
-    let mut tx_buffer = [0; 4096];
-    let mut buf = [0; 4096];
-
-    loop {
-        let mut socket = embassy_net::tcp::TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
-        socket.set_timeout(Some(embassy_time::Duration::from_secs(10)));
-
-        info!("Listening on TCP:80...");
-        if let Err(e) = socket.accept(80).await {
-            warn!("accept error: {:?}", e);
-            continue;
-        }
-
-        info!("Received connection from {:?}", socket.remote_endpoint());
-
-        loop {
-            let n = match socket.read(&mut buf).await {
-                Ok(0) => {
-                    warn!("read EOF");
-                    break;
-                }
-                Ok(n) => n,
-                Err(e) => {
-                    warn!("read error: {:?}", e);
-                    break;
-                }
-            };
-
-            info!("rxd {:02x}", &buf[..n]);
-
-            match socket.write_all(&buf[..n]).await {
-                Ok(()) => {}
-                Err(e) => {
-                    warn!("write error: {:?}", e);
-                    break;
-                }
-            };
-        }
-    }
     /*loop {
         let mut socket = embassy_net::tcp::TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
         socket.set_timeout(Some(embassy_time::Duration::from_secs(10)));

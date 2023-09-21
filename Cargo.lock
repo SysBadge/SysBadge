@@ -609,6 +609,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "data-encoding"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2e66c9d817f1720209181c316d28635c050fa304f9c79e47a520882661b7308"
+
+[[package]]
 name = "debug-helper"
 version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1371,6 +1377,7 @@ dependencies = [
  "defmt",
  "hash32",
  "rustc_version 0.4.0",
+ "serde",
  "spin",
  "stable_deref_trait",
 ]
@@ -1617,6 +1624,12 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
+name = "lhash"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6df04c84bd3f83849dd23c51be4cbb22a02d80ebdea22741558fe30127d837ae"
 
 [[package]]
 name = "libc"
@@ -2021,6 +2034,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6796ad771acdc0123d2a88dc428b5e38ef24456743ddb1744ed628f9815c096"
 dependencies = [
  "siphasher",
+]
+
+[[package]]
+name = "picoserve"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "185c7d4239bf94452b7de355efa645f078e416acac5fd8de32cdd82f666506e4"
+dependencies = [
+ "data-encoding",
+ "embedded-io-async",
+ "futures-util",
+ "heapless",
+ "lhash",
+ "log",
+ "ryu",
+ "serde",
 ]
 
 [[package]]
@@ -2837,8 +2866,10 @@ dependencies = [
  "heapless",
  "hex",
  "panic-probe",
+ "picoserve",
  "pimoroni_badger2040",
  "rp2040-hal",
+ "serde",
  "static_cell",
  "sysbadge",
  "uc8151",
