@@ -1,31 +1,31 @@
 <!DOCTYPE html>
-<html class="dark">
+<html>
 <head>
     <meta charset="utf-8">
     <title>Sysbadge Documentation</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 text-black dark:text-white p-8">
-    <div class="container mx-auto">
-        <div class="max-w-2xl mx-auto">
-            <h1 class="text-4xl font-bold mb-8">Sysbadge User Manual</h1>
+<body>
+    <div class="container">
+        <div class="content">
+            <h1 class="header">Sysbadge User Manual</h1>
             <div class="prose">
                 <p>
-                    To start using your Sysbadge, follow these steps:
+                    To get started with your Sysbadge, follow these steps:
                 </p>
                 <ol>
                     <li>Connect your badge display unit to your PC's USB port.</li>
-                    <li>On the back of the display, locate the <strong>{boot}</strong> and <strong>{rst}</strong> buttons.</li>
-                    <li>Press and hold <strong>{boot}</strong> for 3 seconds, then press <strong>{rst}</strong> while still holding <strong>{boot}</strong>.</li>
-                    <li>This will connect the display as a USB stick to your PC for file transfer.</li>
-                    <li>Download the firmware UF2 file from <a href="https://cyberchaos.dev/kloenk/sysbadge/-/packages" class="underline">this link</a> and copy it to your display.</li>
-                    <li>The badge will automatically disconnect from the PC. Reconnect it by following the same steps as above.</li>
+                    <li>Locate the <strong>{boot}</strong> and <strong>{rst}</strong> buttons on the back of the display.</li>
+                    <li>Press and hold <strong>{boot}</strong> for 3 seconds, then press <strong>{rst}</strong> while holding <strong>{boot}</strong>.</li>
+                    <li>This will connect the display to your PC, allowing file transfer.</li>
+                    <li>Download the firmware UF2 file from <a href="sysbadge.uf2" class="underline">this link</a> and copy it to your display.</li>
+                    <li>The badge will disconnect from the PC. Reconnect it by following the same steps.</li>
                     <li>Visit <a href="https://pluralkit.me/" class="underline">PluralKit</a> to obtain your system ID.</li>
                     <li>Enter your system ID on <a href="/" class="underline">this page</a> to get the data file, and copy it to your badge display.</li>
                 </ol>
-                <p>After completing these steps, you can disconnect any power sources if connected.</p>
+                <p>Once completed, you can disconnect any connected power sources.</p>
 
-                <p><strong>Note:</strong> A power source is required for using your Sysbadge.</p>
+                <p><strong>Note:</strong> A power source is required to use your Sysbadge.</p>
 
                 <p>
                     When powered on, the badge should display your system name. Press <strong>B</strong> for software and support information.
@@ -46,5 +46,9 @@
             </div>
         </div>
     </div>
+
+    <footer class="footer">
+        Powered by <a href="https://github.com/SysBadge/SysBadge" class="underline" target="_blank" rel="noopener noreferrer">Sysbadge</a> | <a href="index.html" class="underline">Main page</a>
+    </footer>
 </body>
 </html>
