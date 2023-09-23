@@ -1,13 +1,10 @@
 name: "Web deployment"
 
 on:
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - closed
-  #push:
+  push:
+    branches:
+    - main
+
 jobs:
   build-web:
     runs-on: ubuntu-latest
@@ -27,11 +24,9 @@ jobs:
         retention-days: 5
   deploy-preview:
     needs: build-web
-    concurrency: preview-${{ github.ref }}
     runs-on: ubuntu-20.04
     permissions:
       contents: write
-      pull-requests: write
     steps:
     - uses: actions/checkout@v3
     - name: Download build web directory
@@ -40,7 +35,8 @@ jobs:
       with:
         name: web
         path: dist/
-    - name: Deploy preview
-      uses: rossjrw/pr-preview-action@v1
+    - name: Deploy
+      uses: JamesIves/github-pages-deploy-action@v4
       with:
-        source-dir: dist/
+        folder: dist/
+        clean-exclude: pr-preview/
