@@ -35,14 +35,14 @@ jobs:
         name: sysbadge
         # If you chose API tokens for write access OR if you have a private cache
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-    - run: nix build -L .#sysbadge_web
+    - run: nix build -L .#sysbadge_fw
     - uses: actions/upload-artifact@v3
       with:
         name: firmware
-        path: result/
+        path: result/share/sysbadge/
         retention-days: 5
   deploy-preview:
-    needs: build-web
+    needs: [ build-web, build-fw ]
     concurrency: preview-${{ github.ref }}
     runs-on: ubuntu-20.04
     permissions:
