@@ -272,7 +272,7 @@
           shell = { lib, stdenv, mkShell, fenix, rust-analyzer-nightly, gdb
             , cargo-watch, cargo-edit, cargo-outdated, cargo-asm, libiconv
             , flip-link, probe-run, SDL2, just, yarn, wasm-bindgen-cli
-            , elf2uf2-rs, libusb1 }:
+            , elf2uf2-rs, libusb1, pkg-config, openssl }:
             mkShell {
               nativeBuildInputs = [
                 (fenixToolchain fenix)
@@ -291,6 +291,7 @@
                 yarn
                 wasm-bindgen-cli
               ] ++ lib.optional stdenv.isLinux gdb
+                ++ lib.optionals stdenv.isLinux [ pkg-config openssl ]
                 ++ lib.optional stdenv.isDarwin libiconv;
               inherit (self.checks.${system}.pre-commit) shellHook;
               NODE_OPTIONS = "--openssl-legacy-provider";

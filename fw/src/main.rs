@@ -75,6 +75,11 @@ fn main() -> ! {
     unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, 2048) }
 
     let p = embassy_rp::init(Default::default());
+    let en = Output::new(unsafe { peripherals::PIN_10::steal() }, Level::High);
+
+    for _ in 0..20 {
+        unsafe { core::arch::asm!("nop") }
+    }
 
     let badge = init(p);
     let badge = BADGE.init(Mutex::new(badge));
@@ -107,12 +112,16 @@ fn init(p: Peripherals) -> SysbadgeUc8151<'static> {
     let reset = Output::new(p.PIN_21, Level::Low);
 
     let mut display = Uc8151::new(spi, cs, dc, busy, reset);
+
+    for _ in 0..10 {
+        unsafe { core::arch::asm!("nop") }
+    }
+
+    display.enable();
     unwrap!(
         display.setup(&mut embassy_time::Delay, uc8151::LUT::Fast),
         "Failed to setup display"
     );
-
-    display.enable();
 
     let mut sysbadge = Sysbadge::new(display);
 
