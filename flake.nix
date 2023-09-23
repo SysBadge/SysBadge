@@ -316,4 +316,10 @@
         };
       });
     };
+
+  nixConfig = {
+    extra-substituters = [ "https://sysbadge.cachix.org" ];
+    extra-trusted-public-keys =
+      [ "sysbadge.cachix.org-1:2XaoG5be9KA/qMzFumRTJdLjs/4H5ROLtAnS0EG8ebE=" ];
+  };
 }
