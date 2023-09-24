@@ -2,7 +2,7 @@ use pkrs::client::PkClient;
 use pkrs::model::PkId;
 use std::mem::MaybeUninit;
 use std::{mem, ptr};
-use sysbadge::system::{MemberUF2, SystemUf2, SystemVec};
+use sysbadge::system::SystemVec;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::spawn_local;

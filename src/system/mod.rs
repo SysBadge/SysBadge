@@ -1,5 +1,4 @@
 mod owned;
-mod uf2;
 
 pub mod system_capnp {
     include!(concat!(env!("OUT_DIR"), "/system/system_capnp.rs"));
@@ -9,7 +8,6 @@ use capnp::message::ReaderSegments;
 #[cfg(feature = "updater")]
 pub use owned::Updater;
 pub use owned::{MemberStrings, SystemVec};
-pub use uf2::*;
 
 pub use capnp;
 
@@ -101,7 +99,7 @@ impl SystemReader<capnp::serialize::NoAllocSliceSegments<'static>> {
         #[cfg(feature = "defmt")]
         defmt::trace!(
             "reading system from addr: {}, len: {}",
-            (&__ssystem_start as *const u8 as usize),
+            unsafe { &__ssystem_start as *const u8 as usize },
             len
         );
         unsafe { core::slice::from_raw_parts(&__ssystem_start as *const u8, len) }
@@ -143,17 +141,5 @@ impl<'a> Member for MemberReader<'a> {
             .unwrap()
             .to_str()
             .unwrap_or_default()
-    }
-}
-
-pub struct SystemBuilder<A: capnp::message::Allocator = capnp::message::HeapAllocator> {
-    pub(crate) builder: capnp::message::Builder<A>,
-}
-
-impl SystemBuilder<capnp::message::HeapAllocator> {
-    pub fn new_default() -> Self {
-        Self {
-            builder: capnp::message::Builder::new_default(),
-        }
     }
 }

@@ -1,4 +1,4 @@
-use crate::system::{Member, SystemUf2};
+use crate::system::Member;
 use crate::{Button, DrawResult, System};
 use alloc::format;
 use core::hint::unreachable_unchecked;

@@ -75,7 +75,7 @@ fn main() -> ! {
     unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, 2048) }
 
     let p = embassy_rp::init(Default::default());
-    let en = Output::new(unsafe { peripherals::PIN_10::steal() }, Level::High);
+    let _enable_pmic = Output::new(unsafe { peripherals::PIN_10::steal() }, Level::High);
 
     for _ in 0..20 {
         unsafe { core::arch::asm!("nop") }

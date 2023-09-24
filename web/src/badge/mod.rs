@@ -1,7 +1,7 @@
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics_web_simulator::display::WebSimulatorDisplay;
 use sysbadge::badge::Sysbadge;
-use sysbadge::system::{MemberUF2, SystemUf2, SystemVec};
+use sysbadge::system::SystemVec;
 use wasm_bindgen::prelude::*;
 use web_sys::{console, Document};
 
@@ -26,7 +26,7 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
         );
 
         let system = create_system();
-        let mut sysbadge = Sysbadge::new_with_system(display, system);
+        let mut sysbadge = Sysbadge::new(display, system);
 
         sysbadge.draw().unwrap();
 
