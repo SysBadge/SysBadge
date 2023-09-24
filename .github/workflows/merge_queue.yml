@@ -1,0 +1,8 @@
+name: "Run merge queue jobs"
+
+on:
+  merge_group:
+
+jobs:
+  nix:
+    uses: ./.github/workflows/nix.yml

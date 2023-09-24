@@ -127,6 +127,48 @@
                     rustTarget stdenv.targetPlatform.system
                   } --package sysbadge-simulator";
               })) { };
+          sysbadge_tui = final.callPackage
+            ({ lib, stdenv, fenix, libiconv, libusb1, darwin ? null }:
+              let
+                system = stdenv.targetPlatform.system;
+                toolchain = (fenixToolchain fenix);
+                craneLib = crane.lib.${system}.overrideToolchain toolchain;
+              in craneLib.buildPackage ((commonArgs craneLib {
+                inherit lib stdenv libiconv toolchain;
+                fw = false;
+              }) // {
+                cargoArtifacts = cargoArtifacts craneLib toolchain;
+                pname = "sysbadge-tui";
+                buildInputs = [ libusb1 ]
+                  ++ lib.optional stdenv.isDarwin libiconv;
+                nativeBuildInputs = [ ]
+                  ++ lib.optional stdenv.isDarwin darwin.DarwinTools;
+                cargoExtraArgs =
+                  "-Z build-std=compiler_builtins,core,alloc,std --target ${
+                    rustTarget stdenv.targetPlatform.system
+                  } --package sysbadge-usb --bin tui";
+              })) { };
+          sysbadge_cli = final.callPackage ({ lib, stdenv, fenix, libiconv
+            , libusb1, openssl, pkg-config, darwin ? null }:
+            let
+              system = stdenv.targetPlatform.system;
+              toolchain = (fenixToolchain fenix);
+              craneLib = crane.lib.${system}.overrideToolchain toolchain;
+            in craneLib.buildPackage ((commonArgs craneLib {
+              inherit lib stdenv libiconv toolchain;
+              fw = false;
+            }) // {
+              cargoArtifacts = cargoArtifacts craneLib toolchain;
+              pname = "sysbadge-cli";
+              buildInputs = [ libusb1 ] ++ lib.optional stdenv.isLinux openssl
+                ++ lib.optional stdenv.isDarwin libiconv;
+              nativeBuildInputs = [ ] ++ lib.optional stdenv.isLinux pkg-config
+                ++ lib.optional stdenv.isDarwin darwin.DarwinTools;
+              cargoExtraArgs =
+                "-Z build-std=compiler_builtins,core,alloc,std --target ${
+                  rustTarget stdenv.targetPlatform.system
+                } --package sysbadge-cli";
+            })) { };
           sysbadge_fw_unwraped = final.callPackage
             ({ lib, stdenv, fenix, flip-link, elf2uf2-rs, libiconv }:
               let
@@ -239,7 +281,7 @@
       packages = forAllSystems (system: {
         inherit (nixpkgsFor.${system})
           sysbadge_simulator sysbadge_fw sysbadge_wasm_unwraped sysbadge_wasm
-          sysbadge_web probe-run;
+          sysbadge_web probe-run sysbadge_tui sysbadge_cli;
       });
 
       apps = forAllSystems (system: {
