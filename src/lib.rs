@@ -1,5 +1,7 @@
 #![no_std]
 #![feature(ptr_metadata)]
+#![feature(return_position_impl_trait_in_trait)]
+#![deny(unsafe_op_in_unsafe_fn)]
 
 extern crate alloc;
 

@@ -1,3 +1,6 @@
+#![feature(return_position_impl_trait_in_trait)]
+#![deny(unsafe_op_in_unsafe_fn)]
+
 use log::info;
 use rusb::{
     constants, Device, DeviceDescriptor, DeviceHandle, Hotplug, HotplugBuilder, Registration,
@@ -253,7 +256,29 @@ impl<T: UsbContext> System for UsbSysbadge<T> {
         self.member_count().unwrap_or(0) as usize
     }
 
-    fn member(&self, index: usize) -> &dyn Member {
-        todo!()
+    fn member(&self, index: usize) -> UsbMember<T> {
+        UsbMember {
+            badge: self,
+            id: index,
+        }
+    }
+}
+
+pub struct UsbMember<'a, T: UsbContext + 'a> {
+    badge: &'a UsbSysbadge<T>,
+    id: usize,
+}
+
+impl<'u, T: UsbContext + 'u> Member for UsbMember<'u, T> {
+    fn name<'a>(&'a self) -> impl AsRef<str> + 'a {
+        self.badge
+            .member_name(self.id as u16)
+            .unwrap_or_else(|_| "Unknown".to_string())
+    }
+
+    fn pronouns<'a>(&'a self) -> impl AsRef<str> + 'a {
+        self.badge
+            .member_pronouns(self.id as u16)
+            .unwrap_or_else(|_| "Unknown".to_string())
     }
 }

@@ -7,7 +7,7 @@ use embedded_graphics_simulator::{
     sdl2::Keycode, BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent,
     Window,
 };
-use sysbadge::system::{MemberUF2, SystemUf2, SystemVec};
+use sysbadge::system::SystemVec;
 use sysbadge::{badge::Sysbadge, Button};
 
 fn main() -> Result<(), core::convert::Infallible> {
@@ -20,7 +20,7 @@ fn main() -> Result<(), core::convert::Infallible> {
         .build();
 
     let system = create_system();
-    let mut sysbadge = Sysbadge::new_with_system(display, system);
+    let mut sysbadge = Sysbadge::new(display, system);
 
     sysbadge.draw().unwrap();
 

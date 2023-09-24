@@ -1,4 +1,4 @@
-use crate::system::{Member, SystemUf2};
+use crate::system::Member;
 use crate::{Button, DrawResult, System};
 use alloc::format;
 use core::hint::unreachable_unchecked;
@@ -280,33 +280,13 @@ where
     hash: u16,
 }
 
-impl<D> Sysbadge<D, &'static SystemUf2>
-where
-    D: DrawTarget,
-    <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
-{
-    pub fn new(display: D) -> Self {
-        let system = unsafe { &*Self::system_start() };
-        Self::new_with_system(display, system)
-    }
-
-    /// Get system start pointer from linker symbole.
-    pub fn system_start() -> *const SystemUf2 {
-        extern "C" {
-            static mut __ssystem: SystemUf2;
-        }
-
-        unsafe { &__ssystem }
-    }
-}
-
 impl<D, S> Sysbadge<D, S>
 where
     D: DrawTarget,
     <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
     S: System,
 {
-    pub fn new_with_system(display: D, system: S) -> Self {
+    pub fn new(display: D, system: S) -> Self {
         let current = if system.is_valid() {
             CurrentMenu::SystemName
         } else {
@@ -375,7 +355,7 @@ where
 
     fn draw_system_name(&mut self) -> DrawResult<D> {
         Text::with_alignment(
-            &self.system.name(),
+            self.system.name().as_ref(),
             self.display.bounding_box().center(),
             MonoTextStyle::new(
                 &embedded_graphics::mono_font::ascii::FONT_10X20,
@@ -517,21 +497,23 @@ where
     }
 }
 
-pub(crate) struct DrawableMember<'a, C>
+pub(crate) struct DrawableMember<C, M>
 where
     C: PixelColor + From<BinaryColor>,
+    M: Member,
 {
-    member: &'a dyn Member,
+    member: M,
     bounds: Rectangle,
     select: Select,
     _color: core::marker::PhantomData<C>,
 }
 
-impl<'a, C> DrawableMember<'a, C>
+impl<C, M> DrawableMember<C, M>
 where
     C: PixelColor + From<BinaryColor>,
+    M: Member,
 {
-    pub fn new(member: &'a dyn Member, bounds: Rectangle, select: Select) -> Self {
+    pub fn new(member: M, bounds: Rectangle, select: Select) -> Self {
         Self {
             member,
             bounds,
@@ -569,7 +551,7 @@ where
         };
 
         Text::with_alignment(
-            &format!("({})", self.member.pronouns()),
+            &format!("({})", self.member.pronouns().as_ref()),
             self.bounds.top_left + pos,
             MonoTextStyle::new(font, BINARY_COLOR_ON.into()),
             align,
@@ -599,7 +581,7 @@ where
         };
 
         Text::with_alignment(
-            self.member.name(),
+            self.member.name().as_ref(),
             self.bounds.top_left + pos,
             MonoTextStyle::new(font, BINARY_COLOR_ON.into()),
             Alignment::Left,
@@ -608,9 +590,10 @@ where
     }
 }
 
-impl<'a, C> Drawable for DrawableMember<'a, C>
+impl<C, M> Drawable for DrawableMember<C, M>
 where
     C: PixelColor + From<BinaryColor>,
+    M: Member,
 {
     type Color = C;
     type Output = Rectangle;
@@ -625,7 +608,7 @@ where
         self.bounds.draw_styled(&bound_style, target)?;
 
         self.name(target)?;
-        if !self.member.pronouns().is_empty() {
+        if !self.member.pronouns().as_ref().is_empty() {
             self.pronoun(target)?;
         }
 
