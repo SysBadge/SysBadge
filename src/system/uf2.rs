@@ -186,15 +186,15 @@ impl SystemUf2 {
 }
 
 impl System for SystemUf2 {
-    fn name(&self) -> Cow<'_, str> {
-        Cow::Borrowed(self.name())
+    fn name(&self) -> &str {
+        self.name()
     }
 
     fn member_count(&self) -> usize {
         self.len()
     }
 
-    fn member(&self, index: usize) -> &dyn Member {
+    fn member(&self, index: usize) -> &MemberUF2 {
         &self.members()[index]
     }
 

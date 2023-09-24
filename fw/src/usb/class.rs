@@ -9,8 +9,9 @@ use embassy_usb::types::InterfaceNumber;
 use embassy_usb::{Builder, Handler};
 
 use crate::RpFlashMutex;
+use sysbadge::system::Member;
 use sysbadge::usb::BootSel::Application;
-use sysbadge::{badge::CurrentMenu, usb as sysusb};
+use sysbadge::{badge::CurrentMenu, usb as sysusb, System};
 
 pub struct State {
     control: MaybeUninit<Control>,
@@ -152,25 +153,28 @@ impl Handler for Control {
             Ok(sysusb::Request::GetSystemName) => {
                 debug!("Sending system name");
 
-                let out = match req.value {
+                match req.value {
                     0 => block_on(async {
                         let badge = self.badge.lock().await;
-                        badge.system.name()
-                    })
-                    .as_bytes(),
+                        let out = badge.system.name().as_bytes();
+                        if buf.len() < out.len() {
+                            return Some(InResponse::Rejected);
+                        }
+                        buf[..out.len()].copy_from_slice(out);
+                        Some(InResponse::Accepted(&buf[..out.len()]))
+                    }),
                     1 => block_on(async {
                         let badge = self.badge.lock().await;
-                        badge.system.hid()
+                        //badge.system.hid()
+                        let out: &[u8] = defmt::todo!();
+                        if buf.len() < out.len() {
+                            return Some(InResponse::Rejected);
+                        }
+                        buf[..out.len()].copy_from_slice(out);
+                        Some(InResponse::Accepted(&buf[..out.len()]))
                     }),
                     _ => return Some(InResponse::Rejected),
-                };
-
-                if buf.len() < out.len() {
-                    return Some(InResponse::Rejected);
                 }
-
-                buf[..out.len()].copy_from_slice(out);
-                Some(InResponse::Accepted(&buf[..out.len()]))
             }
             Ok(sysusb::Request::GetMemberCount) if req.length == 2 => {
                 debug!("Sending member count");
@@ -178,7 +182,7 @@ impl Handler for Control {
 
                 let count = block_on(async {
                     let badge = self.badge.lock().await;
-                    badge.system.len() as u16
+                    badge.system.member_count() as u16
                 });
                 buf[0..2].copy_from_slice(&count.to_le_bytes());
 
@@ -188,43 +192,37 @@ impl Handler for Control {
                 debug!("Sending member name {}", req.value);
 
                 let offset = req.value as usize;
-                let name = block_on(async {
+                block_on(async {
                     let badge = self.badge.lock().await;
-                    if badge.system.len() <= offset {
+                    if badge.system.member_count() <= offset {
                         trace!("Member {} not found", offset);
-                        None
+                        Some(InResponse::Rejected)
                     } else {
-                        Some(badge.system.members()[offset].name())
+                        let member = badge.system.member(offset);
+                        let name = member.name();
+                        let name = name.as_bytes();
+                        buf[..name.len()].copy_from_slice(name);
+                        Some(InResponse::Accepted(&buf[..name.len()]))
                     }
-                });
-
-                if let Some(name) = name {
-                    buf[..name.len()].copy_from_slice(name.as_bytes());
-                    Some(InResponse::Accepted(&buf[..name.len()]))
-                } else {
-                    Some(InResponse::Rejected)
-                }
+                })
             }
             Ok(sysusb::Request::GetMemberPronouns) => {
                 debug!("Sending member pronouns {}", req.value);
 
                 let offset = req.value as usize;
-                let pronouns = block_on(async {
+                block_on(async {
                     let badge = self.badge.lock().await;
-                    if badge.system.len() <= offset {
+                    if badge.system.member_count() <= offset {
                         trace!("Member {} not found", offset);
-                        None
+                        Some(InResponse::Rejected)
                     } else {
-                        Some(badge.system.members()[offset].pronouns())
+                        let member = badge.system.member(offset);
+                        let pronouns = member.pronouns();
+                        let pronouns = pronouns.as_bytes();
+                        buf[..pronouns.len()].copy_from_slice(pronouns);
+                        Some(InResponse::Accepted(&buf[..pronouns.len()]))
                     }
-                });
-
-                if let Some(pronouns) = pronouns {
-                    buf[..pronouns.len()].copy_from_slice(pronouns.as_bytes());
-                    Some(InResponse::Accepted(&buf[..pronouns.len()]))
-                } else {
-                    Some(InResponse::Rejected)
-                }
+                })
             }
             Ok(sysusb::Request::GetState)
                 if req.length == core::mem::size_of::<CurrentMenu>() as u16 =>

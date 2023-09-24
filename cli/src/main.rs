@@ -24,7 +24,7 @@ enum Commands {
         #[clap(long, short, value_parser, default_value = "uf2")]
         format: PkDlFormat,
 
-        #[clap(long, value_parser, default_value = "268697600")]
+        #[clap(long, value_parser, default_value = "270467072")]
         offset: u32,
 
         /// Output file '-' for stdout
@@ -72,7 +72,7 @@ async fn main() {
 
             let data = match format {
                 PkDlFormat::UF2 => system.get_uf2(*offset),
-                PkDlFormat::Bin => system.get_bin(*offset),
+                PkDlFormat::Bin => system.get_bin(),
             };
 
             output.write_all(&data).unwrap();

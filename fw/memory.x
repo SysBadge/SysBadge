@@ -5,7 +5,9 @@ MEMORY {
 }
 
 /* ### HAS TO BE KEPT IN SYNC WITH THE EXPORTER */
-__ssystem = ORIGIN(FLASH) + 0x40000 - 0x100;
+/* __ssystem_start = ORIGIN(FLASH) + 0x40000 - 0x100; */
+__ssystem_start = ORIGIN(FLASH) + LENGTH(FLASH) - 64K;
+__ssystem_end = __ssystem_start + 64K;
 
 EXTERN(BOOT2_FIRMWARE)
 

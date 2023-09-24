@@ -33,7 +33,7 @@ use panic_probe as _;
 use uc8151::Uc8151;
 
 use sysbadge::badge::Sysbadge;
-use sysbadge::system::SystemUf2;
+use sysbadge::system::SystemReader;
 use sysbadge::Button;
 
 pub enum UsbControl {
@@ -67,7 +67,7 @@ type SysbadgeUc8151<'a> = Sysbadge<
         Input<'a, peripherals::PIN_26>,
         Output<'a, peripherals::PIN_21>,
     >,
-    &'a SystemUf2,
+    SystemReader<sysbadge::system::capnp::serialize::NoAllocSliceSegments<'a>>,
 >;
 
 #[cortex_m_rt::entry]
@@ -123,7 +123,8 @@ fn init(p: Peripherals) -> SysbadgeUc8151<'static> {
         "Failed to setup display"
     );
 
-    let mut sysbadge = Sysbadge::new(display);
+    let system = unsafe { sysbadge::system::SystemReader::from_linker_symbols() };
+    let mut sysbadge = Sysbadge::new(display, system);
 
     info!("updating display");
     unwrap!(sysbadge.draw(), "Failed to draw display");

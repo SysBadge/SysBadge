@@ -10,7 +10,7 @@ use web_sys::{window, Blob, Document, HtmlElement, HtmlInputElement};
 
 const RP2040_FAMILY_ID: u32 = 0xe48bff56;
 // HAS TO BE KEP IN SYNC WITH THE VALUE IN `fw/memory.x`
-const RP2040_DATA_ADDR: u32 = 0x40000;
+const RP2040_DATA_ADDR: u32 = 0x001F0000;
 // HAS TO BE KEP IN SYNC WITH THE VALUE IN `fw/memory.x`
 const RP2040_ROM_ADDR: u32 = 0x10000000;
 

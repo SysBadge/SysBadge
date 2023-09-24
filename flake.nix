@@ -111,7 +111,7 @@
             });
         in {
           sysbadge_simulator = final.callPackage
-            ({ lib, stdenv, fenix, SDL2, libiconv }:
+            ({ lib, stdenv, fenix, SDL2, capnproto, libiconv }:
               let
                 system = stdenv.targetPlatform.system;
                 toolchain = (fenixToolchain fenix);
@@ -122,6 +122,7 @@
               }) // {
                 cargoArtifacts = cargoArtifacts craneLib toolchain;
                 pname = "sysbadge-fw-simulator";
+                nativeBuildIputs = [ capnproto ];
                 cargoExtraArgs =
                   "-Z build-std=compiler_builtins,core,alloc,std --target ${
                     rustTarget stdenv.targetPlatform.system
@@ -170,7 +171,7 @@
                 } --package sysbadge-cli";
             })) { };
           sysbadge_fw_unwraped = final.callPackage
-            ({ lib, stdenv, fenix, flip-link, elf2uf2-rs, libiconv }:
+            ({ lib, stdenv, fenix, flip-link, elf2uf2-rs, capnproto, libiconv }:
               let
                 system = stdenv.targetPlatform.system;
                 toolchain = (fenixToolchain fenix);
@@ -181,7 +182,7 @@
               }) // {
                 cargoArtifacts = cargoArtifacts craneLib toolchain;
                 pname = "sysbadge-fw";
-                nativeBuildIputs = [ flip-link ];
+                nativeBuildIputs = [ flip-link capnproto ];
                 buildInputs = [ flip-link ]
                   ++ lib.optional stdenv.isDarwin libiconv;
                 cargoExtraArgs =
@@ -202,20 +203,22 @@
                 cp ${sysbadge_fw_unwraped}/bin/sysbadge-fw $out/share/sysbadge/sysbadge.elf
                 elf2uf2-rs $out/share/sysbadge/sysbadge.elf $out/share/sysbadge/sysbadge.uf2
               '') { };
-          sysbadge_wasm_unwraped = final.callPackage ({ lib, stdenv, fenix }:
-            let
-              system = stdenv.targetPlatform.system;
-              toolchain = (fenixToolchain fenix);
-              craneLib = crane.lib.${system}.overrideToolchain toolchain;
-            in craneLib.buildPackage ((commonArgs craneLib {
-              inherit lib stdenv toolchain;
-              fw = false;
-            }) // {
-              cargoArtifacts = cargoArtifacts craneLib toolchain;
-              pname = "sysbadge-wasm-unwraped";
-              cargoExtraArgs =
-                "-Z build-std=compiler_builtins,core,alloc,std,panic_abort --target wasm32-unknown-unknown --package sysbadge-web";
-            })) { };
+          sysbadge_wasm_unwraped = final.callPackage
+            ({ lib, stdenv, fenix, capnproto }:
+              let
+                system = stdenv.targetPlatform.system;
+                toolchain = (fenixToolchain fenix);
+                craneLib = crane.lib.${system}.overrideToolchain toolchain;
+              in craneLib.buildPackage ((commonArgs craneLib {
+                inherit lib stdenv toolchain;
+                fw = false;
+              }) // {
+                cargoArtifacts = cargoArtifacts craneLib toolchain;
+                pname = "sysbadge-wasm-unwraped";
+                nativeBuildIputs = [ capnproto ];
+                cargoExtraArgs =
+                  "-Z build-std=compiler_builtins,core,alloc,std,panic_abort --target wasm32-unknown-unknown --package sysbadge-web";
+              })) { };
         };
       overlays.sysbadge_web = final: prev: {
         sysbadge_images = final.callPackage
@@ -314,7 +317,8 @@
           shell = { lib, stdenv, mkShell, fenix, rust-analyzer-nightly, gdb
             , cargo-watch, cargo-edit, cargo-outdated, cargo-asm, libiconv
             , flip-link, probe-run, SDL2, just, yarn, wasm-bindgen-cli
-            , elf2uf2-rs, libusb1, pkg-config, openssl }:
+            , elf2uf2-rs, libusb1, capnproto-rust, capnproto, pkg-config
+            , openssl }:
             mkShell {
               nativeBuildInputs = [
                 (fenixToolchain fenix)
@@ -329,6 +333,8 @@
                 elf2uf2-rs
                 SDL2
                 libusb1
+                capnproto
+                capnproto-rust
 
                 yarn
                 wasm-bindgen-cli

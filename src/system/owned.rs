@@ -37,7 +37,7 @@ impl SystemVec {
 impl SystemVec {
     #[cfg(any(feature = "uf2", doc))]
     pub fn get_uf2(&self, offset: u32) -> alloc::vec::Vec<u8> {
-        let buf = self.get_bin(offset);
+        let buf = self.get_bin();
         Self::bin_to_uf2(&buf, offset)
     }
 
@@ -46,7 +46,11 @@ impl SystemVec {
         uf2::bin_to_uf2(bin, uf2::RP2040_FAMILY_ID, offset)
     }
 
-    pub fn get_bin(&self, offset: u32) -> alloc::vec::Vec<u8> {
+    pub fn get_bin(&self) -> alloc::vec::Vec<u8> {
+        let builder = self.capnp_builder();
+        capnp::serialize::write_message_to_words(&builder)
+    }
+    /*pub fn get_bin(&self, offset: u32) -> alloc::vec::Vec<u8> {
         let mut buf = alloc::vec::Vec::new();
 
         let mut system = SystemUf2::ZERO;
@@ -151,6 +155,22 @@ impl SystemVec {
         }
 
         return bytes as u32;
+    }*/
+
+    fn capnp_builder(&self) -> capnp::message::Builder<capnp::message::HeapAllocator> {
+        let mut builder = capnp::message::Builder::new_default();
+        {
+            let mut system = builder.init_root::<super::system_capnp::system::Builder>();
+            system.set_name(self.name.as_str().into());
+
+            let mut members = system.init_members(self.members.len() as u32);
+            for (i, member) in self.members.iter().enumerate() {
+                let mut out = members.reborrow().get(i as u32);
+                out.set_name(member.name.as_str().into());
+                out.set_pronouns(member.pronouns.as_str().into());
+            }
+        }
+        builder
     }
 }
 
@@ -164,15 +184,15 @@ const fn bytes_to_align(align: u32, bytes: u32) -> u32 {
 }
 
 impl System for SystemVec {
-    fn name(&self) -> Cow<'_, str> {
-        Cow::Borrowed(&self.name)
+    fn name(&self) -> &str {
+        &self.name
     }
 
     fn member_count(&self) -> usize {
         self.members.len()
     }
 
-    fn member(&self, index: usize) -> &dyn Member {
+    fn member(&self, index: usize) -> &MemberStrings {
         &self.members[index]
     }
 }
