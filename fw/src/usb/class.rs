@@ -22,7 +22,7 @@ pub struct State {
 impl State {
     pub fn new(
         badge: &'static Mutex<CriticalSectionRawMutex, crate::SysbadgeUc8151<'static>>,
-        flash: &'static crate::RpFlashMutex<'static>,
+        flash: &'static RpFlashMutex<'static>,
     ) -> Self {
         Self {
             control: MaybeUninit::uninit(),

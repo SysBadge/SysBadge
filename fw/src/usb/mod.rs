@@ -109,7 +109,7 @@ pub async fn init(
     ));
 
     unwrap!(spawner.spawn(net_task(stack)));
-    unwrap!(spawner.spawn(web::web_server_task(stack, badge)));
+    unwrap!(spawner.spawn(web::web_server_task(stack, badge, flash)));
 
     /*loop {
         let mut socket = embassy_net::tcp::TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
