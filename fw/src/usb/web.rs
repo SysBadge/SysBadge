@@ -9,10 +9,12 @@ use embassy_sync::mutex::Mutex;
 use embassy_usb::class::cdc_ncm::embassy_net::Device;
 use embedded_io_async::Write;
 use picoserve::extract::State;
+use picoserve::request::Request;
 use picoserve::response::IntoResponse;
-use picoserve::routing::{get, parse_path_segment};
+use picoserve::routing::{get, parse_path_segment, post};
 use picoserve::Router;
 use static_cell::make_static;
+use sysbadge::badge::{CurrentMembers, CurrentMenu, MemberCell};
 use sysbadge::system::Member;
 use sysbadge::System;
 
@@ -45,6 +47,55 @@ impl picoserve::extract::FromRef<WebState>
     }
 }
 
+enum BadgeState {
+    Locked,
+    Name,
+    Version,
+    Member(u8, [u16; 4]),
+}
+
+impl core::str::FromStr for BadgeState {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "locked" => Ok(Self::Locked),
+            "name" => Ok(Self::Name),
+            "version" => Ok(Self::Version),
+            s if s.starts_with("member") => {
+                let mut iter = s.split('-');
+                iter.next();
+                let mut len = 0;
+                let mut arr = [0; 4];
+                for x in iter {
+                    // TODO: unwrap
+                    arr[len as usize] = x.parse().map_err(|_| ())?;
+                    len += 1;
+                    if len > 4 {
+                        return Err(());
+                    }
+                }
+                Ok(Self::Member(len, arr))
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+struct DataFile {}
+
+impl picoserve::extract::FromRequest<WebState> for DataFile {
+    type Rejection = ();
+
+    async fn from_request(
+        state: &WebState,
+        request: &Request<'_>,
+    ) -> Result<Self, Self::Rejection> {
+        defmt::info!("len: {}", request.body().len());
+        defmt::todo!()
+    }
+}
+
 #[embassy_executor::task]
 pub(crate) async fn web_server_task(
     stack: &'static Stack<Device<'static, { super::MTU }>>,
@@ -57,7 +108,9 @@ pub(crate) async fn web_server_task(
     let app: &Router<WebRouter, WebState> = make_static!(picoserve::Router::new()
         .route("/api/sysinfo", get(get_system_info))
         .route("/api/version", get(get_version))
-        .route(("/api/members", parse_path_segment()), get(get_member)));
+        .route(("/api/members", parse_path_segment()), get(get_member))
+        .route(("/api/set", parse_path_segment()), post(set_state))
+        .route("/api/update", post(update)));
 
     let config = make_static!(picoserve::Config {
         start_read_request_timeout: None,
@@ -66,9 +119,6 @@ pub(crate) async fn web_server_task(
 
     let buf: &mut [u8] = make_static!([0; 4096]);
 
-    /*unwrap!(embassy_executor::Spawner::for_current_executor().await.spawn(web_task(stack, app, config, WebState {
-        badge
-    })));*/
     let rx_buffer: &mut [u8] = make_static!([0; 4096]);
     let tx_buffer: &mut [u8] = make_static!([0; 4096]);
 
@@ -182,4 +232,35 @@ async fn get_version(State(state): State<WebState>) -> impl IntoResponse {
         },
         semver: sysbadge::VERSION,
     })
+}
+
+async fn set_state(state: BadgeState, State(web_state): State<WebState>) -> impl IntoResponse {
+    let mut badge = web_state.badge.lock().await;
+
+    match state {
+        // TODO: Locked instead of InvalidSystem
+        BadgeState::Locked => badge.set_current(CurrentMenu::InvalidSystem),
+        BadgeState::Name => badge.set_current(CurrentMenu::SystemName),
+        BadgeState::Version => badge.set_current(CurrentMenu::Version),
+        BadgeState::Member(len, arr) => {
+            let member_state = CurrentMembers {
+                members: arr.map(|x| MemberCell { id: x }),
+                sel: (0, Default::default()),
+                len,
+            };
+            badge.set_current(CurrentMenu::Member(member_state))
+        }
+    }
+
+    badge.draw().unwrap();
+    badge.display.update().unwrap();
+    picoserve::response::Json("ok")
+}
+
+async fn update(State(web_state): State<WebState>, data: DataFile) -> impl IntoResponse {
+    let mut badge = web_state.badge.lock().await;
+
+    badge.draw().unwrap();
+    badge.display.update().unwrap();
+    picoserve::response::Json("ok")
 }
