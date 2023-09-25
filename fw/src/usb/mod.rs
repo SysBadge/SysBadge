@@ -21,24 +21,11 @@ pub async fn init(
 ) {
     let driver = Driver::new(unsafe { embassy_rp::peripherals::USB::steal() }, Irqs);
 
-    let serial = {
-        let mut buf = [0; 8];
-        let mut flash = flash.lock().await;
-        unwrap!(flash.blocking_unique_id(&mut buf));
-        let mut out = [0; 16];
-        unwrap!(
-            hex::encode_to_slice(&buf, &mut out),
-            "Failed to encode serial"
-        );
-        out
-    };
-    let serial = unsafe { core::str::from_utf8_unchecked(&serial) };
-
     // Create config
     let mut config = Config::new(sysusb::VID, sysusb::PID);
     config.manufacturer = Some("nyantec GmbH");
     config.product = Some("Sysbadge");
-    config.serial_number = Some(serial);
+    config.serial_number = Some(crate::get_serial_str(flash).await);
     config.max_power = 100;
     config.max_packet_size_0 = 64;
 

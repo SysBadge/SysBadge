@@ -16,7 +16,7 @@ update = [ "reqwest", "pkrs", "wasm-bindgen-futures", "sysbadge/updater", "sysba
 badge = [ "embedded-graphics", "embedded-graphics-web-simulator", "web-sys/HtmlCanvasElement", "web-sys/CanvasRenderingContext2d" ]
 
 [dependencies]
-sysbadge = { path = "..", features = [ "simulator", "wasm" ] }
+sysbadge = { path = "..", features = [ "simulator", "wasm", "alloc" ] }
 
 wasm-bindgen = "=0.2.87"
 wee_alloc = "0.4.5"

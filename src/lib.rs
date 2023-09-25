@@ -3,6 +3,7 @@
 #![feature(return_position_impl_trait_in_trait)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
 #[cfg(feature = "wasm")]

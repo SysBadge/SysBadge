@@ -12,14 +12,13 @@ sysbadge = { path = "..", features = [ "invert", "defmt" ]}
 
 cortex-m = { version = "0.7" }
 cortex-m-rt = { version = "0.7" }
-alloc-cortex-m = { version = "0.4" }
 embedded-hal = { version = "0.2.5", features = ["unproven"] }
 #rp2040-hal = { version = "0.8.0", features = [ "disable-intrinsics" ] }
 
 # Board support
-pimoroni_badger2040 = { version = "0.4" }
+# pimoroni_badger2040 = { version = "0.4" }
 
-defmt = { version = "0.3", features = ["alloc"] }
+defmt = { version = "0.3", features = [ ], default-features = false }
 defmt-rtt = { version = "0.4" }
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 
