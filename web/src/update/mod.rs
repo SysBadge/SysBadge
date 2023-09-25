@@ -91,11 +91,7 @@ fn download_uf2(system: &System) {
     let offset = RP2040_ROM_ADDR + RP2040_DATA_ADDR;
     let vec = system.get_system().get_uf2(offset);
 
-    let download_name = if let Some(name) = &system.info.name {
-        format!("{}.uf2", name)
-    } else {
-        format!("{}.uf2", "system")
-    };
+    let download_name = format!("{}.uf2", system.system.name);
 
     let uint8arr = js_sys::Uint8Array::new(&unsafe { js_sys::Uint8Array::view(&vec) }.into());
     let array = js_sys::Array::new();
@@ -144,45 +140,28 @@ async fn update() -> Result<&'static System, JsValue> {
 }
 
 struct System {
-    id: PkId,
-    info: pkrs::model::System,
-    members: Vec<pkrs::model::Member>,
+    system: SystemVec,
 }
 
 impl System {
     async fn get(id: PkId) -> Result<Self, JsValue> {
-        let client = PkClient {
-            user_agent: "sysbadge wasm updater".to_string(),
-            ..Default::default()
-        };
+        let mut updater = sysbadge::system::Updater::new();
+        updater.client.user_agent = "sysbadge wasm updater".to_string();
 
-        let info = client.get_system(&id).await?;
-        let members = client.get_system_members(&id).await?;
+        let system = updater.get(&id.0).await?;
 
-        Ok(Self { id, info, members })
+        Ok(Self { system })
     }
 
-    fn get_system(&self) -> SystemVec {
-        let mut system = SystemVec::new(
-            self.info
-                .name
-                .clone()
-                .unwrap_or("no system name".to_string()),
-        );
-        for member in &self.members {
-            system.members.push(sysbadge::system::MemberStrings {
-                name: member.name.clone(),
-                pronouns: member.pronouns.clone().unwrap_or("".to_string()),
-            });
-        }
-        system
+    fn get_system(&self) -> &SystemVec {
+        &self.system
     }
 
     #[cfg(feature = "badge")]
     fn set_system(&self) {
         unsafe {
             let badge = crate::badge::SYSBADGE.as_mut().unwrap();
-            badge.system = self.get_system();
+            badge.system = self.get_system().clone();
             badge.reset();
             badge.draw().unwrap();
             badge.display.flush().unwrap();

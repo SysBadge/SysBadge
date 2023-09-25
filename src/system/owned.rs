@@ -6,6 +6,7 @@ use alloc::string::String;
 use alloc::string::ToString;
 
 /// Owned system utilizing a vec to hold members.
+#[derive(Debug, Clone)]
 pub struct SystemVec {
     /// Name of the system
     pub name: String,
@@ -86,6 +87,7 @@ impl System for SystemVec {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct MemberStrings {
     pub name: String,
     pub pronouns: String,
@@ -127,7 +129,7 @@ impl Updater {
         for member in members {
             system.members.push(MemberStrings {
                 name: transform_name(&member.display_name.unwrap_or_else(|| member.name)),
-                pronouns: member.pronouns.unwrap_or("".to_string()),
+                pronouns: transform_name(member.pronouns.as_deref().unwrap_or("")),
             });
         }
 

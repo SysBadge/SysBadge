@@ -527,31 +527,41 @@ where
         D: DrawTarget,
         <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
     {
-        let (pos, align, font) = match self.bounds.size.height {
+        let member = self.member.pronouns();
+        let str = member.as_ref();
+        let str_len = core::cmp::min(str.len(), 60);
+        let (pos, align, font, text) = match self.bounds.size.height {
             x if x > 100 => (
                 Point::new(5, (self.bounds.size.height - 20) as i32),
                 Alignment::Left,
                 &embedded_graphics::mono_font::ascii::FONT_10X20,
+                &str[..str_len],
             ),
             x if x > 50 => (
                 Point::new(5, (self.bounds.size.height - 15) as i32),
                 Alignment::Left,
                 &embedded_graphics::mono_font::ascii::FONT_8X13,
+                &str[..str_len],
             ),
             x if x > 40 => (
                 Point::new((self.bounds.size.width - 5) as i32, 15),
                 Alignment::Right,
                 &embedded_graphics::mono_font::ascii::FONT_8X13,
+                &str[..str_len],
             ),
-            _ => (
-                Point::new((self.bounds.size.width - 5) as i32, 15),
-                Alignment::Right,
-                &embedded_graphics::mono_font::ascii::FONT_6X10,
-            ),
+            _ => {
+                let str_len = core::cmp::min(str_len, 30);
+                (
+                    Point::new((self.bounds.size.width - 5) as i32, 15),
+                    Alignment::Right,
+                    &embedded_graphics::mono_font::ascii::FONT_6X10,
+                    &str[..str_len],
+                )
+            }
         };
 
         Text::with_alignment(
-            &format!("({})", self.member.pronouns().as_ref()),
+            &format!("({})", text),
             self.bounds.top_left + pos,
             MonoTextStyle::new(font, BINARY_COLOR_ON.into()),
             align,
