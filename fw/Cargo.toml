@@ -15,6 +15,7 @@ cortex-m-rt = { version = "0.7" }
 alloc-cortex-m = { version = "0.4" }
 embedded-hal = { version = "0.2.5", features = ["unproven"] }
 #rp2040-hal = { version = "0.8.0", features = [ "disable-intrinsics" ] }
+rp2040-hal = { version = "0.8.2", features = [ "rom-v2-intrinsics" ] }
 
 # Board support
 pimoroni_badger2040 = { version = "0.4" }
@@ -27,8 +28,10 @@ uc8151 = { version = "0.2", features = [ "graphics" ] }
 
 fugit = "0.3.7"
 
-static_cell = "1.2.0"
+static_cell = { version = "1.2.0", features = ["nightly"] }
 hex = { version = "0.4", default-features = false }
+heapless = "0.7.16"
+picoserve = "0.1.2"
 # Embassy
 embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", features = ["defmt", "unstable-traits", "nightly", "unstable-pac", "time-driver", "critical-section-impl"] }
 embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", features = ["defmt"] }
@@ -36,4 +39,7 @@ embassy-futures = { git = "https://github.com/embassy-rs/embassy.git" }
 embassy-time = { git = "https://github.com/embassy-rs/embassy.git", features = ["nightly", "unstable-traits", "defmt", "defmt-timestamp-uptime"] }
 embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", features = ["nightly", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt", "integrated-timers"] }
 embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", features = ["defmt"] }
+embassy-net = { git = "https://github.com/embassy-rs/embassy.git", features = ["defmt", "nightly", "tcp", "proto-ipv4", "proto-ipv6", "medium-ethernet"] }
 
+embedded-io-async = { version = "0.5.0", features = ["defmt-03"] }
+serde = { version = "1.0.188", default-features = false, features = ["derive", "alloc"] }

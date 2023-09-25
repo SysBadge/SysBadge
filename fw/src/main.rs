@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 #![feature(allocator_api, alloc_error_handler)]
+#![feature(async_fn_in_trait)]
 
 mod usb;
 
