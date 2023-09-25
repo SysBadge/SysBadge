@@ -1,13 +1,15 @@
-mod owned;
+#[cfg(feature = "alloc")]
+mod alloc;
 
 pub mod system_capnp {
     include!(concat!(env!("OUT_DIR"), "/system/system_capnp.rs"));
 }
 
-use capnp::message::ReaderSegments;
 #[cfg(feature = "updater")]
-pub use owned::Updater;
-pub use owned::{MemberStrings, SystemVec};
+pub use alloc::Updater;
+#[cfg(feature = "alloc")]
+pub use alloc::{MemberStrings, SystemVec};
+use capnp::message::ReaderSegments;
 
 pub use capnp;
 
@@ -61,7 +63,6 @@ pub struct SystemReader<S>
 where
     S: ReaderSegments,
 {
-    //pub(crate) reader: capnp::message::TypedReader<S, system_capnp::system::Owned>
     pub(crate) reader: capnp::message::Reader<S>,
 }
 
@@ -75,7 +76,6 @@ impl<'a> SystemReader<capnp::serialize::NoAllocSliceSegments<'a>> {
     pub fn from_byte_slice(slice: &mut &'a [u8]) -> capnp::Result<Self> {
         let reader =
             capnp::serialize::read_message_from_flat_slice_no_alloc(slice, Default::default())?;
-        //let reader = reader.into_typed();
         Ok(Self { reader })
     }
 }

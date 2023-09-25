@@ -1,19 +1,11 @@
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
-#![feature(allocator_api, alloc_error_handler)]
 
 mod usb;
 
-use alloc::string::ToString;
-use alloc_cortex_m::CortexMHeap;
 use defmt::*;
 use embassy_time::{Duration, Timer};
-
-extern crate alloc;
-
-#[global_allocator]
-static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
 
 // Ensure we halt the program on panic (if we don't mention this crate it won't
 // be linked)
@@ -70,10 +62,31 @@ type SysbadgeUc8151<'a> = Sysbadge<
     SystemReader<sysbadge::system::capnp::serialize::NoAllocSliceSegments<'a>>,
 >;
 
+const SERIAL_LEN: usize = 16;
+static mut SERIAL: [u8; SERIAL_LEN] = [0; 16];
+
+pub async fn get_serial_str(flash: &RpFlashMutex<'_>) -> &'static str {
+    unsafe { core::str::from_utf8_unchecked(get_serial(flash).await) }
+}
+pub async fn get_serial(flash: &RpFlashMutex<'_>) -> &'static [u8] {
+    if u64::from_le_bytes(unsafe { SERIAL[0..8].try_into().unwrap() }) == 0 {
+        let mut buf = [0; SERIAL_LEN.div_ceil(2)];
+        let mut flash = flash.lock().await;
+        defmt::unwrap!(flash.blocking_unique_id(&mut buf));
+        let mut out = [0; SERIAL_LEN];
+        defmt::unwrap!(
+            hex::encode_to_slice(&buf, &mut out),
+            "Failed to encode serial"
+        );
+        defmt::info!("serial: {:?}", out);
+        unsafe { SERIAL = out };
+    }
+
+    unsafe { &SERIAL }
+}
+
 #[cortex_m_rt::entry]
 fn main() -> ! {
-    unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, 2048) }
-
     let p = embassy_rp::init(Default::default());
     let _enable_pmic = Output::new(unsafe { peripherals::PIN_10::steal() }, Level::High);
 
@@ -151,16 +164,7 @@ async fn core0_init(
 
     // adding serial number
     {
-        let mut buf = [0; 8];
-        let mut flash = flash.lock().await;
-        defmt::unwrap!(flash.blocking_unique_id(&mut buf));
-        let mut out = [0; 16];
-        defmt::unwrap!(
-            hex::encode_to_slice(&buf, &mut out),
-            "Failed to encode serial"
-        );
-        let serial = unsafe { core::str::from_utf8_unchecked(&out) }.to_string();
-        info!("serial: {}", serial);
+        let serial = get_serial_str(&flash).await;
         badge.lock().await.serial = Some(serial);
     }
 
@@ -269,9 +273,4 @@ async fn button_task_down() {
 
 async fn press_button(button: Button) {
     CHANNEL.send(button).await;
-}
-
-#[alloc_error_handler]
-fn alloc_error(layout: core::alloc::Layout) -> ! {
-    defmt::panic!("allocation error: {:?}", layout);
 }

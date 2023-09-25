@@ -10,13 +10,14 @@ authors = [ "Finn Behrens <me@kloenk.dev>" ]
 default = [ "uf2" ]
 simulator = [ ]
 invert = [ ]
-updater = [ "dep:pkrs", "dep:reqwest" ]
+updater = [ "alloc", "dep:pkrs", "dep:reqwest" ]
 wasm = [ "dep:wasm-bindgen" ]
 defmt = [ "dep:defmt" ]
 uf2 = [ ]
+alloc = [ "defmt?/alloc", "capnp/alloc" ]
 
 [dependencies]
-defmt = { version = "0.3", features = ["alloc"], optional = true }
+defmt = { version = "0.3", features = [ ], optional = true }
 
 nb = "1.1"
 fugit = "0.3"
@@ -33,7 +34,7 @@ reqwest = { version = "0.11", optional = true }
 
 wasm-bindgen = { version = "=0.2.87", optional = true }
 
-capnp = { version = "0.18", default-features = false, features= [ "alloc" ] }
+capnp = { version = "0.18", default-features = false, features= [ ] }
 [build-dependencies]
 capnpc = "0.18"
 
@@ -69,9 +70,9 @@ overflow-checks = false
 [profile.dev.build-override]
 codegen-units = 8
 debug = false
-debug-assertions = false
+debug-assertions = true
 opt-level = 0
-overflow-checks = false
+overflow-checks = true
 
 [profile.release.build-override]
 codegen-units = 8

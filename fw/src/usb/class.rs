@@ -8,7 +8,7 @@ use embassy_usb::driver::Driver;
 use embassy_usb::types::InterfaceNumber;
 use embassy_usb::{Builder, Handler};
 
-use crate::RpFlashMutex;
+use crate::{RpFlashMutex, SERIAL_LEN};
 use sysbadge::system::Member;
 use sysbadge::usb::BootSel::Application;
 use sysbadge::{badge::CurrentMenu, usb as sysusb, System};
@@ -267,19 +267,10 @@ impl Handler for Control {
                         }
                     }
                     Ok(VersionType::SerialNumber) if req.length >= 16 => {
-                        let serial = block_on(async {
-                            let mut buf = [0; 8];
-                            let mut flash = self.flash.lock().await;
-                            defmt::unwrap!(flash.blocking_unique_id(&mut buf));
-                            let mut out = [0; 16];
-                            defmt::unwrap!(
-                                hex::encode_to_slice(&buf, &mut out),
-                                "Failed to encode serial"
-                            );
-                            out
+                        block_on(async {
+                            buf[..SERIAL_LEN].copy_from_slice(crate::get_serial(self.flash).await);
                         });
-                        buf[..serial.len()].copy_from_slice(&serial);
-                        Some(InResponse::Accepted(&buf[..serial.len()]))
+                        Some(InResponse::Accepted(&buf[..SERIAL_LEN]))
                     }
                     Ok(VersionType::SemVer) if req.length >= sysbadge::VERSION.len() as u16 => {
                         debug!("Sending version");

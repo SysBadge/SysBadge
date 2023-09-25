@@ -1,6 +1,5 @@
 use crate::system::Member;
 use crate::{Button, DrawResult, System};
-use alloc::format;
 use core::hint::unreachable_unchecked;
 use core::ptr;
 use embedded_graphics::geometry::AnchorY;
@@ -275,7 +274,7 @@ where
 {
     pub display: D,
     pub system: S,
-    pub serial: Option<alloc::string::String>,
+    pub serial: Option<&'static str>,
     current: CurrentMenu,
     hash: u16,
 }
@@ -560,13 +559,16 @@ where
             }
         };
 
-        Text::with_alignment(
-            &format!("({})", text),
+        // FIXME: brackets around text
+        let pos = Text::with_alignment(
+            text,
             self.bounds.top_left + pos,
             MonoTextStyle::new(font, BINARY_COLOR_ON.into()),
             align,
         )
-        .draw(target)
+        .draw(target)?;
+
+        Ok(pos)
     }
 
     fn name<D>(&self, target: &mut D) -> DrawResult<D, Point>

@@ -8,7 +8,7 @@ authors = [ "Finn Behrens <me@kloenk.dev>" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sysbadge = { path = "..", features = [ "simulator" ] }
+sysbadge = { path = "..", features = [ "simulator", "alloc" ] }
 
 embedded-graphics-simulator = { version = "0.5" }
 embedded-graphics = "0.8"
