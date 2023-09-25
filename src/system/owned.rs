@@ -152,7 +152,12 @@ fn transform_name(input: &str) -> String {
     };
 
     // Filter out non-ASCII characters and create an iterator of chars
-    let ascii_chars: String = filtered_input.chars().filter(|c| c.is_ascii()).collect();
+    let ascii_chars: String = filtered_input
+        .chars()
+        .filter(|c| {
+            c.is_ascii_alphanumeric() || c.is_ascii_punctuation() || matches!(c, ' ' | '\t')
+        })
+        .collect();
 
     // Trim leading and trailing whitespace
     let trimmed_ascii = ascii_chars.trim();
