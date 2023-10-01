@@ -7,6 +7,7 @@ struct System @0x8c2507c83833987c {
     union {
         none @2 :Void;
         pkHid @3 :Text;
+        pronouns @4 :Text;
     }
 }
 

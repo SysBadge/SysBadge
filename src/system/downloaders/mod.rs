@@ -6,6 +6,12 @@ mod pk;
 #[cfg(feature = "downloader-pk")]
 pub use pk::PkDownloader;
 
+#[cfg(feature = "downloader-pronouns")]
+mod pronouns;
+
+#[cfg(feature = "downloader-pronouns")]
+use pronouns::PronounsDownloader;
+
 use super::SystemVec;
 
 pub trait Downloader {
@@ -18,12 +24,17 @@ pub trait Downloader {
 pub enum Source {
     #[cfg(feature = "downloader-pk")]
     PluralKit,
+    #[cfg(feature = "downloader-pronouns")]
+    Pronouns,
 }
 
 impl Source {
     pub fn short_identifier(&self) -> &'static str {
         match self {
+            #[cfg(feature = "downloader-pk")]
             Self::PluralKit => "pk",
+            #[cfg(feature = "downloader-pronouns")]
+            Self::Pronouns => "pronouns",
         }
     }
 }
@@ -33,6 +44,8 @@ impl core::fmt::Display for Source {
         match self {
             #[cfg(feature = "downloader-pk")]
             Self::PluralKit => write!(f, "PluralKit"),
+            #[cfg(feature = "downloader-pronouns")]
+            Self::Pronouns => write!(f, "Pronouns"),
         }
     }
 }
@@ -57,6 +70,8 @@ impl core::str::FromStr for Source {
         match s {
             #[cfg(feature = "downloader-pk")]
             "pk" | "PluralKit" => Ok(Self::PluralKit),
+            #[cfg(feature = "downloader-pronouns")]
+            "pronouns" => Ok(Self::Pronouns),
             _ => Err(ParseError),
         }
     }
@@ -68,6 +83,8 @@ impl clap::ValueEnum for Source {
         &[
             #[cfg(feature = "downloader-pk")]
             Self::PluralKit,
+            #[cfg(feature = "downloader-pronouns")]
+            Self::Pronouns,
         ]
     }
 
@@ -75,6 +92,8 @@ impl clap::ValueEnum for Source {
         Some(match self {
             #[cfg(feature = "downloader-pk")]
             Self::PluralKit => clap::builder::PossibleValue::new("PluralKit").alias("pk"),
+            #[cfg(feature = "downloader-pronouns")]
+            Self::Pronouns => clap::builder::PossibleValue::new("Pronouns"),
         })
     }
 }
@@ -109,12 +128,21 @@ impl GenericDownloader {
         match source {
             #[cfg(feature = "downloader-pk")]
             Source::PluralKit => self.get_pk(id).await,
+            #[cfg(feature = "downloader-pronouns")]
+            Source::Pronouns => self.get_pronouns(id).await,
         }
     }
 
     #[cfg(feature = "downloader-pk")]
     pub async fn get_pk(&self, id: impl AsRef<str>) -> Result<SystemVec, reqwest::Error> {
         let mut downloader = PkDownloader::new();
+        downloader.set_useragent(&self.useragent).await;
+        downloader.get(id).await
+    }
+
+    #[cfg(feature = "downloader-pronouns")]
+    pub async fn get_pronouns(&self, id: impl AsRef<str>) -> Result<SystemVec, reqwest::Error> {
+        let mut downloader = PronounsDownloader::new();
         downloader.set_useragent(&self.useragent).await;
         downloader.get(id).await
     }

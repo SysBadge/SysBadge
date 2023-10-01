@@ -3,14 +3,21 @@ use crate::System;
 
 use alloc::string::String;
 
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug, Clone)]
+pub enum SourceId {
+    PluralKit(String),
+    Pronouns(String),
+}
+
 /// Owned system utilizing a vec to hold members.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, Clone)]
 pub struct SystemVec {
     /// Name of the system
     pub name: String,
-    /// Optional Pluralkit id
-    pub hid: Option<String>,
+    /// Optional source id
+    pub source_id: Option<SourceId>,
     /// Vector of members
     pub members: alloc::vec::Vec<MemberStrings>,
 }
@@ -19,7 +26,7 @@ impl SystemVec {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            hid: None,
+            source_id: None,
             members: alloc::vec::Vec::new(),
         }
     }
@@ -57,8 +64,15 @@ impl SystemVec {
         {
             let mut system = builder.init_root::<super::system_capnp::system::Builder>();
             system.set_name(self.name.as_str().into());
-            if let Some(hid) = self.hid.as_deref() {
-                system.set_pk_hid(hid.into());
+            if let Some(source_id) = &self.source_id {
+                match source_id {
+                    SourceId::PluralKit(hid) => {
+                        system.set_pk_hid(hid.as_str().into());
+                    }
+                    SourceId::Pronouns(id) => {
+                        system.set_pronouns(id.as_str().into());
+                    }
+                }
             }
 
             let mut members = system.init_members(self.members.len() as u32);
