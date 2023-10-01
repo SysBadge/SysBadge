@@ -4,6 +4,7 @@ use crate::System;
 use alloc::string::String;
 
 /// Owned system utilizing a vec to hold members.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, Clone)]
 pub struct SystemVec {
     /// Name of the system
@@ -85,6 +86,7 @@ impl System for SystemVec {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, Clone)]
 pub struct MemberStrings {
     pub name: String,

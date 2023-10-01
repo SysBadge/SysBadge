@@ -6,8 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sysbadge = { path = "..", features = [ "uf2", "downloader", "clap" ] }
+sysbadge = { path = "..", features = [ "uf2", "downloader", "clap", "serde" ] }
 
 tokio = { version = "1.32", features = [ "rt", "macros", "rt-multi-thread" ] }
 clap = { version = "4.3", features = [ "cargo", "derive" ] }
 clio = { version = "0.3", features = [ "clap-parse" ] }
+
+serde_json = { version = "1" }

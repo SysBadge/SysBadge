@@ -40,6 +40,7 @@ enum Commands {
 enum DlFormat {
     UF2,
     Bin,
+    Json,
 }
 
 impl Display for DlFormat {
@@ -47,6 +48,7 @@ impl Display for DlFormat {
         match self {
             Self::UF2 => write!(f, "uf2"),
             Self::Bin => write!(f, "bin"),
+            Self::Json => write!(f, "json"),
         }
     }
 }
@@ -76,6 +78,7 @@ async fn main() {
             let data = match format {
                 DlFormat::UF2 => system.get_uf2(*offset),
                 DlFormat::Bin => system.get_bin(),
+                DlFormat::Json => serde_json::ser::to_vec_pretty(&system).unwrap(),
             };
 
             output.write_all(&data).unwrap();
