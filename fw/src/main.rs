@@ -173,6 +173,9 @@ async fn core0_init(
     spawner.spawn(button_task_c()).unwrap();
     spawner.spawn(button_task_up()).unwrap();
     spawner.spawn(button_task_down()).unwrap();
+
+    let mut pin = Input::new(unsafe { peripherals::PIN_24::steal() }, Pull::Down);
+    pin.wait_for_high().await;
     spawner.spawn(usb::init(spawner, badge, flash)).unwrap();
 }
 
