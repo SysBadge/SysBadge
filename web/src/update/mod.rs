@@ -145,7 +145,7 @@ struct System {
 
 impl System {
     async fn get(id: PkId) -> Result<Self, JsValue> {
-        let mut updater = sysbadge::system::Updater::new();
+        let mut updater = sysbadge::system::downloaders::PkDownloader::new();
         updater.client.user_agent = "sysbadge wasm updater".to_string();
 
         let system = updater.get(&id.0).await?;

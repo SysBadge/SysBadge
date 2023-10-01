@@ -1,6 +1,9 @@
 #[cfg(feature = "alloc")]
 mod alloc;
 
+#[cfg(feature = "downloaders")]
+pub mod downloaders;
+
 pub mod system_capnp {
     include!(concat!(env!("OUT_DIR"), "/system/system_capnp.rs"));
 }

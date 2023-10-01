@@ -1,6 +1,7 @@
 #![no_std]
 #![feature(ptr_metadata)]
 #![feature(return_position_impl_trait_in_trait)]
+#![cfg_attr(feature = "downloaders", feature(async_fn_in_trait, error_in_core))]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 #[cfg(feature = "alloc")]

@@ -10,11 +10,16 @@ authors = [ "Finn Behrens <me@kloenk.dev>" ]
 default = [ "uf2" ]
 simulator = [ ]
 invert = [ ]
-updater = [ "alloc", "dep:pkrs", "dep:reqwest" ]
+downloaders = [ "alloc" ]
+downloader = [ "downloader-pk", "downloader-pronouns" ]
+downloader-pk = [ "downloaders", "dep:pkrs", "dep:reqwest" ]
+downloader-pronouns = [ "downloaders", "serde", "dep:reqwest" ]
 wasm = [ "dep:wasm-bindgen" ]
 defmt = [ "dep:defmt" ]
 uf2 = [ ]
 alloc = [ "defmt?/alloc", "capnp/alloc" ]
+clap = [ "dep:clap" ]
+serde = [ "dep:serde" ]
 
 [dependencies]
 defmt = { version = "0.3", features = [ ], optional = true }
@@ -31,6 +36,9 @@ profont = "0.7.0"
 # updater
 pkrs = { version = "0.3", optional = true }
 reqwest = { version = "0.11", optional = true }
+clap = { version = "4", optional = true }
+
+serde = { version = "1.0", features = [ "derive" ],  optional = true }
 
 wasm-bindgen = { version = "=0.2.87", optional = true }
 
