@@ -59,7 +59,7 @@ async fn main() {
             offset,
             output,
         }) => {
-            let mut client = sysbadge::system::Updater::new();
+            let mut client = sysbadge::system::downloaders::PkDownloader::new();
             client.client.user_agent = "SysBadge CLI".to_string();
 
             let mut system = client.get(id).await.unwrap();

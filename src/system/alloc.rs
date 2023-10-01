@@ -2,8 +2,6 @@ use crate::system::Member;
 use crate::System;
 
 use alloc::string::String;
-#[cfg(feature = "updater")]
-use alloc::string::ToString;
 
 /// Owned system utilizing a vec to hold members.
 #[derive(Debug, Clone)]
@@ -25,10 +23,10 @@ impl SystemVec {
         }
     }
 
-    #[cfg(feature = "updater")]
+    #[cfg(feature = "downloader-pk")]
     #[inline]
-    pub async fn fetch_pk(id: &str) -> Result<Self, reqwest::Error> {
-        Updater::new().get(id).await
+    pub async fn fetch_pk(id: impl AsRef<str>) -> Result<Self, reqwest::Error> {
+        super::downloaders::PkDownloader::new().get(id).await
     }
 
     pub fn sort_members(&mut self) {
@@ -101,71 +99,6 @@ impl Member for MemberStrings {
     fn pronouns(&self) -> &str {
         &self.pronouns
     }
-}
-
-#[cfg(feature = "updater")]
-pub struct Updater {
-    pub client: pkrs::client::PkClient,
-}
-
-#[cfg(feature = "updater")]
-impl Updater {
-    pub fn new() -> Self {
-        Self {
-            client: pkrs::client::PkClient {
-                user_agent: "sysbadge updater".to_string(),
-                ..Default::default()
-            },
-        }
-    }
-
-    pub async fn get(&self, id: &str) -> Result<SystemVec, reqwest::Error> {
-        let id = pkrs::model::PkId(id.to_string());
-        let info = self.client.get_system(&id).await?;
-        let members = self.client.get_system_members(&id).await?;
-
-        let mut system = SystemVec::new(info.name.unwrap_or("no system name".to_string()));
-        system.hid = Some(id.to_string());
-        for member in members {
-            system.members.push(MemberStrings {
-                name: transform_name(&member.display_name.unwrap_or_else(|| member.name)),
-                pronouns: transform_name(member.pronouns.as_deref().unwrap_or("")),
-            });
-        }
-
-        Ok(system)
-    }
-}
-
-#[cfg(feature = "updater")]
-fn transform_name(input: &str) -> String {
-    // Convert the input string to bytes
-    let bytes = input.as_bytes();
-
-    // Find the index of the first occurrence of more than 2 spaces or a tab
-    let index = bytes.iter().enumerate().position(|(idx, &c)| {
-        (c == b' ' && bytes.iter().skip(idx).take(3).all(|&x| x == b' ')) || c == b'\t'
-    });
-
-    // If such an index is found, truncate the input string at that position, else use the original input
-    let filtered_input = match index {
-        Some(idx) => &input[..idx],
-        None => input,
-    };
-
-    // Filter out non-ASCII characters and create an iterator of chars
-    let ascii_chars: String = filtered_input
-        .chars()
-        .filter(|c| {
-            c.is_ascii_alphanumeric() || c.is_ascii_punctuation() || matches!(c, ' ' | '\t')
-        })
-        .collect();
-
-    // Trim leading and trailing whitespace
-    let trimmed_ascii = ascii_chars.trim();
-
-    // Convert the trimmed string to a new String
-    String::from(trimmed_ascii)
 }
 
 #[cfg(feature = "uf2")]
