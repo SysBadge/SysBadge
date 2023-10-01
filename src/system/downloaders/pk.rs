@@ -1,4 +1,4 @@
-use alloc::string::ToString;
+use alloc::string::{String, ToString};
 
 use crate::system::{MemberStrings, SystemVec};
 
@@ -33,5 +33,15 @@ impl PkDownloader {
         }
 
         Ok(system)
+    }
+}
+
+impl super::Downloader for PkDownloader {
+    async fn set_useragent(&mut self, useragent: impl ToString) {
+        self.client.user_agent = useragent.to_string();
+    }
+
+    async fn get(&self, args: impl AsRef<str>) -> Result<SystemVec, reqwest::Error> {
+        self.get(args).await
     }
 }

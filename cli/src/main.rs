@@ -16,13 +16,16 @@ struct Cli {
 
 #[derive(clap::Subcommand)]
 enum Commands {
-    Pkdl {
+    Dl {
         #[clap()]
         id: String,
 
+        #[clap(long, short, default_value = "PluralKit")]
+        source: sysbadge::system::downloaders::Source,
+
         /// Output format.
         #[clap(long, short, value_parser, default_value = "uf2")]
-        format: PkDlFormat,
+        format: DlFormat,
 
         #[clap(long, value_parser, default_value = "270467072")]
         offset: u32,
@@ -34,12 +37,12 @@ enum Commands {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum PkDlFormat {
+enum DlFormat {
     UF2,
     Bin,
 }
 
-impl Display for PkDlFormat {
+impl Display for DlFormat {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UF2 => write!(f, "uf2"),
@@ -53,16 +56,16 @@ async fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
-        Some(Commands::Pkdl {
+        Some(Commands::Dl {
             id,
+            source,
             format,
             offset,
             output,
         }) => {
-            let mut client = sysbadge::system::downloaders::PkDownloader::new();
-            client.client.user_agent = "SysBadge CLI".to_string();
-
-            let mut system = client.get(id).await.unwrap();
+            let mut downloader = sysbadge::system::downloaders::GenericDownloader::new();
+            downloader.useragent = "SysBadge CLI".to_string();
+            let mut system = downloader.get(*source, id).await.unwrap();
             system.sort_members();
 
             let mut output = match output {
@@ -71,8 +74,8 @@ async fn main() {
             };
 
             let data = match format {
-                PkDlFormat::UF2 => system.get_uf2(*offset),
-                PkDlFormat::Bin => system.get_bin(),
+                DlFormat::UF2 => system.get_uf2(*offset),
+                DlFormat::Bin => system.get_bin(),
             };
 
             output.write_all(&data).unwrap();

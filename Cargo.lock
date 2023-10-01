@@ -2559,6 +2559,7 @@ version = "0.1.0"
 dependencies = [
  "capnp",
  "capnpc",
+ "clap",
  "crc16",
  "defmt",
  "embedded-graphics",
