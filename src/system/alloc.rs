@@ -38,7 +38,8 @@ impl SystemVec {
     }
 
     pub fn sort_members(&mut self) {
-        self.members.sort_by(|a, b| a.name.cmp(&b.name));
+        self.members
+            .sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     }
 }
 
