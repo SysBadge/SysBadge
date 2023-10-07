@@ -148,7 +148,8 @@ impl System {
         let mut updater = sysbadge::system::downloaders::PkDownloader::new();
         updater.client.user_agent = "sysbadge wasm updater".to_string();
 
-        let system = updater.get(&id.0).await?;
+        let mut system = updater.get(&id.0).await?;
+        system.sort_members();
 
         Ok(Self { system })
     }
