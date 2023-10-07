@@ -36,6 +36,7 @@
       nixpkgsFor = forAllSystems (system:
         import nixpkgs {
           inherit system;
+          config = { allowUnfree = true; };
           overlays = [ fenix.overlays.default self.overlays.default ];
         });
 
@@ -318,10 +319,10 @@
         let
           pkgs = nixpkgsFor.${system};
           shell = { lib, stdenv, mkShell, fenix, rust-analyzer-nightly, gdb
-            , cargo-watch, cargo-edit, cargo-outdated, cargo-asm, libiconv
-            , flip-link, probe-run, SDL2, just, yarn, wasm-bindgen-cli
+            , cargo-watch, cargo-edit, cargo-outdated, cargo-asm, cargo-binutils
+            , libiconv, flip-link, probe-run, SDL2, just, yarn, wasm-bindgen-cli
             , elf2uf2-rs, libusb1, capnproto-rust, capnproto, pkg-config
-            , openssl }:
+            , openssl, nrf5-sdk }:
             mkShell {
               nativeBuildInputs = [
                 (fenixToolchain fenix)
@@ -330,6 +331,7 @@
                 cargo-edit
                 cargo-outdated
                 cargo-asm
+                cargo-binutils
                 just
                 flip-link
                 probe-run
@@ -338,6 +340,8 @@
                 libusb1
                 capnproto
                 capnproto-rust
+
+                nrf5-sdk
 
                 yarn
                 wasm-bindgen-cli

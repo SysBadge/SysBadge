@@ -2,278 +2,115 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-mod usb;
-
-use defmt::*;
-use embassy_time::{Duration, Timer};
-
-// Ensure we halt the program on panic (if we don't mention this crate it won't
-// be linked)
 use defmt_rtt as _;
 use embassy_executor::Spawner;
-use embassy_futures::select::select;
-use embassy_rp::flash::Flash;
-use embassy_rp::gpio::{Input, Level, Output, Pull};
-use embassy_rp::peripherals::CORE1;
-use embassy_rp::spi::Spi;
-use embassy_rp::{peripherals, Peripherals};
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::channel::Channel;
-use embassy_sync::mutex::Mutex;
+// global logger
+use embassy_nrf::{
+    self as _,
+    gpio::{Level, Output},
+};
+use embassy_time::{Delay, Duration, Timer};
+use nrf_softdevice::Softdevice;
+// time driver
 use panic_probe as _;
 
-use uc8151::Uc8151;
+use core::default::Default;
+use defmt::*;
+use nrf_softdevice::raw;
 
-use sysbadge::badge::Sysbadge;
-use sysbadge::system::SystemReader;
-use sysbadge::Button;
+mod ble;
 
-pub enum UsbControl {
-    GetMemberCount,
-}
-pub enum UsbResponse {
-    MemberCount(u16),
-}
+#[embassy_executor::main]
+async fn main(spawner: Spawner) {
+    let config = embassy_nrf::config::Config::default();
+    let p = embassy_nrf::init(config);
 
-static mut CORE1_STACK: embassy_rp::multicore::Stack<4096> = embassy_rp::multicore::Stack::new();
-static EXECUTOR0: static_cell::StaticCell<embassy_executor::Executor> =
-    static_cell::StaticCell::new();
-static EXECUTOR1: static_cell::StaticCell<embassy_executor::Executor> =
-    static_cell::StaticCell::new();
-static CHANNEL: Channel<CriticalSectionRawMutex, Button, 1> = Channel::new();
+    let pin = p.P0_13;
+    let mut pin = Output::new(pin, Level::Low, embassy_nrf::gpio::OutputDrive::Standard);
 
-static BADGE: static_cell::StaticCell<Mutex<CriticalSectionRawMutex, SysbadgeUc8151>> =
-    static_cell::StaticCell::new();
-
-const FLASH_SIZE: usize = 2 * 1024 * 1024;
-pub type RpFlash<'a> = Flash<'a, peripherals::FLASH, embassy_rp::flash::Blocking, FLASH_SIZE>;
-static FLASH: static_cell::StaticCell<Mutex<CriticalSectionRawMutex, RpFlash<'static>>> =
-    static_cell::StaticCell::new();
-pub type RpFlashMutex<'a> = Mutex<CriticalSectionRawMutex, RpFlash<'a>>;
-
-type SysbadgeUc8151<'a> = Sysbadge<
-    Uc8151<
-        Spi<'a, peripherals::SPI0, embassy_rp::spi::Blocking>,
-        Output<'a, peripherals::PIN_17>,
-        Output<'a, peripherals::PIN_20>,
-        Input<'a, peripherals::PIN_26>,
-        Output<'a, peripherals::PIN_21>,
-    >,
-    SystemReader<sysbadge::system::capnp::serialize::NoAllocSliceSegments<'a>>,
->;
-
-const SERIAL_LEN: usize = 16;
-static mut SERIAL: [u8; SERIAL_LEN] = [0; 16];
-
-pub async fn get_serial_str(flash: &RpFlashMutex<'_>) -> &'static str {
-    unsafe { core::str::from_utf8_unchecked(get_serial(flash).await) }
-}
-pub async fn get_serial(flash: &RpFlashMutex<'_>) -> &'static [u8] {
-    if u64::from_le_bytes(unsafe { SERIAL[0..8].try_into().unwrap() }) == 0 {
-        let mut buf = [0; SERIAL_LEN.div_ceil(2)];
-        let mut flash = flash.lock().await;
-        defmt::unwrap!(flash.blocking_unique_id(&mut buf));
-        let mut out = [0; SERIAL_LEN];
-        defmt::unwrap!(
-            hex::encode_to_slice(&buf, &mut out),
-            "Failed to encode serial"
-        );
-        defmt::info!("serial: {:?}", out);
-        unsafe { SERIAL = out };
+    loop {
+        pin.set_high();
+        Timer::after(Duration::from_secs(1)).await;
+        pin.set_low();
+        Timer::after(Duration::from_secs(1)).await;
     }
-
-    unsafe { &SERIAL }
 }
 
-#[cortex_m_rt::entry]
+/*#[cortex_m_rt::entry]
 fn main() -> ! {
-    let p = embassy_rp::init(Default::default());
-    let _enable_pmic = Output::new(unsafe { peripherals::PIN_10::steal() }, Level::High);
+    let config = embassy_nrf::config::Config::default();
+    let p = embassy_nrf::init(config);
 
-    for _ in 0..20 {
-        unsafe { core::arch::asm!("nop") }
-    }
+    let pin = p.P0_13;
+    let mut pin = Output::new(pin, Level::Low, embassy_nrf::gpio::OutputDrive::Standard);
+    pin.set_high();
+    core::mem::forget(pin);
 
-    let badge = init(p);
-    let badge = BADGE.init(Mutex::new(badge));
-    let badge: &Mutex<_, _> = badge;
-
-    embassy_rp::multicore::spawn_core1(
-        unsafe { CORE1::steal() },
-        unsafe { &mut CORE1_STACK },
-        move || {
-            let executor1 = EXECUTOR1.init(embassy_executor::Executor::new());
-            executor1.run(|spawner| unwrap!(spawner.spawn(core1_init(spawner, badge))));
-        },
-    );
-
-    let executor0 = EXECUTOR0.init(embassy_executor::Executor::new());
-    executor0.run(|spawner| unwrap!(spawner.spawn(core0_init(spawner, badge))));
-}
-
-fn init(p: Peripherals) -> SysbadgeUc8151<'static> {
-    let spi = Spi::new_blocking(
-        p.SPI0,
-        p.PIN_18,
-        p.PIN_19,
-        p.PIN_16,
-        embassy_rp::spi::Config::default(),
-    );
-    let cs = Output::new(p.PIN_17, Level::Low);
-    let dc = Output::new(p.PIN_20, Level::Low);
-    let busy = Input::new(p.PIN_26, Pull::Up);
-    let reset = Output::new(p.PIN_21, Level::Low);
-
-    let mut display = Uc8151::new(spi, cs, dc, busy, reset);
-
-    for _ in 0..10 {
-        unsafe { core::arch::asm!("nop") }
-    }
-
-    display.enable();
-    unwrap!(
-        display.setup(&mut embassy_time::Delay, uc8151::LUT::Fast),
-        "Failed to setup display"
-    );
-
-    let system = unsafe { sysbadge::system::SystemReader::from_linker_symbols() };
-    let mut sysbadge = Sysbadge::new(display, system);
-
-    info!("updating display");
-    unwrap!(sysbadge.draw(), "Failed to draw display");
-    unwrap!(sysbadge.display.update(), "Failed to update display");
-
-    sysbadge
+    let executor = static_cell::make_static!(embassy_executor::Executor::new());
+    executor.run(|spawner| {
+        unwrap!(spawner.spawn(main_ble(spawner)));
+    })
 }
 
 #[embassy_executor::task]
-async fn core0_init(
-    spawner: Spawner,
-    badge: &'static Mutex<CriticalSectionRawMutex, SysbadgeUc8151<'static>>,
-) {
-    info!("Starting tasks on core 0");
+async fn main_ble(spawner: Spawner) {
+    let config = nrf_softdevice::Config {
+        clock: Some(raw::nrf_clock_lf_cfg_t {
+            source: raw::NRF_CLOCK_LF_SRC_RC as u8,
+            rc_ctiv: 16,
+            rc_temp_ctiv: 2,
+            accuracy: raw::NRF_CLOCK_LF_ACCURACY_500_PPM as u8,
+        }),
+        conn_gap: Some(raw::ble_gap_conn_cfg_t {
+            conn_count: 6,
+            event_length: 24,
+        }),
+        conn_gatt: Some(raw::ble_gatt_conn_cfg_t { att_mtu: 256 }),
+        gatts_attr_tab_size: Some(raw::ble_gatts_cfg_attr_tab_size_t { attr_tab_size: 32768 }),
+        gap_role_count: Some(raw::ble_gap_cfg_role_count_t {
+            adv_set_count: 1,
+            periph_role_count: 3,
+            central_role_count: 3,
+            central_sec_count: 0,
+            _bitfield_1: raw::ble_gap_cfg_role_count_t::new_bitfield_1(0),
+        }),
+        gap_device_name: Some(raw::ble_gap_cfg_device_name_t {
+            p_value: b"HelloRust" as *const u8 as _,
+            current_len: 9,
+            max_len: 9,
+            write_perm: unsafe { core::mem::zeroed() },
+            _bitfield_1: raw::ble_gap_cfg_device_name_t::new_bitfield_1(raw::BLE_GATTS_VLOC_STACK as u8),
+        }),
+        ..Default::default()
+    };
 
-    // add some delay to give an attached debug probe time to parse the
-    // defmt RTT header. Reading that header might touch flash memory, which
-    // interferes with flash write operations.
-    // https://github.com/knurling-rs/defmt/pull/683
-    Timer::after(Duration::from_millis(10)).await;
+    let sd = Softdevice::enable(&config);
+    let server = unwrap!(ble::Server::new(sd));
+    unwrap!(spawner.spawn(ble::softdevice_task(sd)));
 
-    let flash = Flash::new_blocking(unsafe { peripherals::FLASH::steal() });
-    let flash = FLASH.init(Mutex::new(flash));
+    #[rustfmt::skip]
+    let adv_data = &[
+        0x02, 0x01, raw::BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE as u8,
+        0x03, 0x03, 0x09, 0x18,
+        0x0a, 0x09, b'H', b'e', b'l', b'l', b'o', b'R', b'u', b's', b't',
+    ];
+    #[rustfmt::skip]
+    let scan_data = &[
+        0x03, 0x03, 0x09, 0x18,
+    ];
 
-    // adding serial number
-    {
-        let serial = get_serial_str(&flash).await;
-        badge.lock().await.serial = Some(serial);
-    }
+    static BONDER: static_cell::StaticCell<ble::Bonder> = static_cell::StaticCell::new();
+    let bonder = BONDER.init(ble::Bonder::default());
 
-    spawner.spawn(button_task_a()).unwrap();
-    spawner.spawn(button_task_b()).unwrap();
-    spawner.spawn(button_task_c()).unwrap();
-    spawner.spawn(button_task_up()).unwrap();
-    spawner.spawn(button_task_down()).unwrap();
-
-    let mut pin = Input::new(unsafe { peripherals::PIN_24::steal() }, Pull::Down);
-    pin.wait_for_high().await;
-    spawner.spawn(usb::init(spawner, badge, flash)).unwrap();
-}
-
-#[embassy_executor::task]
-async fn core1_init(
-    spawner: Spawner,
-    badge: &'static Mutex<CriticalSectionRawMutex, SysbadgeUc8151<'static>>,
-) {
-    info!("Starting tasks on core 1");
-
-    spawner.spawn(update_redraw_timer_task(badge)).unwrap();
-}
-
-const UPDATE_REDRAW_TIMER_TASK_DELAY: u64 = 500;
-#[embassy_executor::task]
-async fn update_redraw_timer_task(
-    badge: &'static Mutex<CriticalSectionRawMutex, SysbadgeUc8151<'static>>,
-) {
-    'outer: loop {
-        let button = CHANNEL.receive().await;
-        //let badge = unsafe { unwrap!(SYSBADGE.as_mut()) };
-        {
-            let mut badge = badge.lock().await;
-            badge.press(button);
-        }
-        loop {
-            let ret = select(
-                CHANNEL.receive(),
-                Timer::after(Duration::from_millis(UPDATE_REDRAW_TIMER_TASK_DELAY)),
-            )
-            .await;
-            match ret {
-                embassy_futures::select::Either::First(btn) => {
-                    let mut badge = badge.lock().await;
-                    badge.press(btn);
-                }
-                embassy_futures::select::Either::Second(_) => {
-                    let mut badge = badge.lock().await;
-                    unwrap!(badge.draw());
-                    unwrap!(badge.display.update(), "Failed to update display");
-                    continue 'outer;
-                }
-            }
-        }
-    }
-}
-
-const DELAY: u64 = 250;
-#[embassy_executor::task]
-async fn button_task_a() {
-    let mut pin = Input::new(unsafe { peripherals::PIN_12::steal() }, Pull::Down);
     loop {
-        pin.wait_for_high().await;
-        press_button(Button::A).await;
-        Timer::after(Duration::from_millis(DELAY)).await;
-    }
-}
+        let config = nrf_softdevice::ble::peripheral::Config::default();
+        let adv = nrf_softdevice::ble::peripheral::ConnectableAdvertisement::ScannableUndirected { adv_data, scan_data };
+        let conn = unwrap!(nrf_softdevice::ble::peripheral::advertise_pairable(sd, adv, &config, bonder).await);
 
-#[embassy_executor::task]
-async fn button_task_b() {
-    let mut pin = Input::new(unsafe { peripherals::PIN_13::steal() }, Pull::Down);
-    loop {
-        pin.wait_for_high().await;
-        press_button(Button::B).await;
-        Timer::after(Duration::from_millis(DELAY)).await;
-    }
-}
+        info!("advertising done!");
 
-#[embassy_executor::task]
-async fn button_task_c() {
-    let mut pin = Input::new(unsafe { peripherals::PIN_14::steal() }, Pull::Down);
-    loop {
-        pin.wait_for_high().await;
-        press_button(Button::C).await;
-        Timer::after(Duration::from_millis(DELAY)).await;
-    }
-}
+        let e = nrf_softdevice::ble::gatt_server::run(&conn, &server, |_| {}).await;
 
-#[embassy_executor::task]
-async fn button_task_up() {
-    let mut pin = Input::new(unsafe { peripherals::PIN_15::steal() }, Pull::Down);
-    loop {
-        pin.wait_for_high().await;
-        press_button(Button::Up).await;
-        Timer::after(Duration::from_millis(DELAY)).await;
+        info!("gatt server done: {:?}", e);
     }
-}
-
-#[embassy_executor::task]
-async fn button_task_down() {
-    let mut pin = Input::new(unsafe { peripherals::PIN_11::steal() }, Pull::Down);
-    loop {
-        pin.wait_for_high().await;
-        press_button(Button::Down).await;
-        Timer::after(Duration::from_millis(DELAY)).await;
-    }
-}
-
-async fn press_button(button: Button) {
-    CHANNEL.send(button).await;
-}
+}*/
