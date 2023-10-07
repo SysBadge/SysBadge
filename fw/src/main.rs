@@ -88,7 +88,8 @@ pub async fn get_serial(flash: &RpFlashMutex<'_>) -> &'static [u8] {
 #[cortex_m_rt::entry]
 fn main() -> ! {
     let p = embassy_rp::init(Default::default());
-    let _enable_pmic = Output::new(unsafe { peripherals::PIN_10::steal() }, Level::High);
+    let enable_pmic = Output::new(unsafe { peripherals::PIN_10::steal() }, Level::High);
+    core::mem::forget(enable_pmic);
 
     for _ in 0..20 {
         unsafe { core::arch::asm!("nop") }
