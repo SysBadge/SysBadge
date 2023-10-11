@@ -20,6 +20,7 @@ uf2 = [ ]
 alloc = [ "defmt?/alloc", "capnp/alloc" ]
 clap = [ "dep:clap" ]
 serde = [ "dep:serde" ]
+std = [ "alloc" ]
 
 [dependencies]
 defmt = { version = "0.3", features = [ ], optional = true }
@@ -124,4 +125,4 @@ embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", rev = "e2f8bf
 
 nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice" }
 nrf-softdevice-s113 = { git = "https://github.com/embassy-rs/nrf-softdevice" }
-nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice" }
+# nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice" }

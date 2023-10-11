@@ -84,10 +84,10 @@ impl<'a> SystemReader<capnp::serialize::NoAllocSliceSegments<'a>> {
 }
 
 impl SystemReader<capnp::serialize::NoAllocSliceSegments<'static>> {
-    pub unsafe fn from_linker_symbols() -> Self {
+    pub unsafe fn from_linker_symbols() -> capnp::Result<Self> {
         let mut bytes = unsafe { Self::flat_bytes() };
 
-        Self::from_byte_slice(&mut bytes).unwrap()
+        Self::from_byte_slice(&mut bytes)
     }
 
     unsafe fn flat_bytes() -> &'static [u8] {

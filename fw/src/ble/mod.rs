@@ -198,8 +198,3 @@ impl gatt_server::Server for Server {
         None
     }
 }
-
-#[embassy_executor::task]
-pub async fn softdevice_task(sd: &'static Softdevice) {
-    sd.run().await;
-}

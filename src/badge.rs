@@ -234,6 +234,7 @@ pub enum CurrentMenu {
     Version,
     Member(CurrentMembers),
     InvalidSystem,
+    Updating,
 }
 
 impl CurrentMenu {
@@ -249,9 +250,13 @@ impl CurrentMenu {
             }
             Self::Member(c) => c.button_press(button, members),
             Self::InvalidSystem => (),
+            Self::Updating => (),
             _ => {
                 #[cfg(feature = "defmt")]
-                defmt::warn!("Unhandled button press: {:?}", button)
+                defmt::warn!("Unhandled button press: {:?}", button);
+
+                #[cfg(feature = "std")]
+                println!("Unhandled button press: {:?}", button);
             }
         }
     }
@@ -330,6 +335,7 @@ where
             CurrentMenu::SystemName => self.draw_system_name(),
             CurrentMenu::Version => self.draw_version(),
             CurrentMenu::Member(ref cur) => cur.draw(&self.system, &mut self.display),
+            CurrentMenu::Updating => todo!("draw updating"),
         }
     }
 

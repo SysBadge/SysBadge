@@ -16,6 +16,8 @@ pub enum Request {
     UpdateDisplay,
     GetVersion,
     Reboot,
+    SystemUpload,
+    SystemDNLoad,
 }
 
 impl TryFrom<u8> for Request {
@@ -33,6 +35,8 @@ impl TryFrom<u8> for Request {
             x if x == (Request::UpdateDisplay as u8) => Ok(Request::UpdateDisplay),
             x if x == (Request::GetVersion as u8) => Ok(Request::GetVersion),
             x if x == (Request::Reboot as u8) => Ok(Request::Reboot),
+            x if x == (Request::SystemUpload as u8) => Ok(Request::SystemUpload),
+            x if x == (Request::SystemDNLoad as u8) => Ok(Request::SystemDNLoad),
             _ => Err(()),
         }
     }

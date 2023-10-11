@@ -1,7 +1,14 @@
+DATA_SYSTEM_LEN = 64K;
+
 MEMORY
 {
   /* NOTE 1 K = 1 KiBi = 1024 bytes */
-  /* These values correspond to the NRF52840 with Softdevices S140 7.0.1 */
-  FLASH : ORIGIN = 0x00027000, LENGTH = 868K
-  RAM : ORIGIN = 0x20020000, LENGTH = 128K
+  /* These values correspond to the NRF52840 with Softdevices S113 7.2.0 */
+  RAM : ORIGIN = 0x2000e8a8, LENGTH = 202584
+  FLASH : ORIGIN = 0x0001C000, LENGTH = 912K - DATA_SYSTEM_LEN
+  DATA_SYSTEM : ORIGIN = ORIGIN(FLASH) + LENGTH(FLASH), LENGTH = DATA_SYSTEM_LEN
 }
+
+/* System sybols */
+__ssystem_start = ORIGIN(DATA_SYSTEM);
+__ssystem_end = ORIGIN(DATA_SYSTEM) + LENGTH(DATA_SYSTEM);
