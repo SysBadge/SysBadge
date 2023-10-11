@@ -57,7 +57,7 @@ fn init(spawner: Spawner) {
     unsafe {
         FLASH.write(Mutex::new(flash));
     }
-    let vbus_detect = make_static!(SoftwareVbusDetect::new(false, false)); // FIXME: initial values
+    let vbus_detect = make_static!(SoftwareVbusDetect::new(true, true)); // FIXME: initial values
 
     let badge = init_badge();
 
@@ -142,9 +142,18 @@ fn enable_softdevice(spawner: Spawner) -> &'static mut Softdevice {
 async fn softdevice_task(sd: &'static Softdevice, usb_detect: &'static SoftwareVbusDetect) -> ! {
     use nrf_softdevice::SocEvent;
     sd.run_with_callback(|evt| match evt {
-        SocEvent::PowerUsbPowerReady => usb_detect.ready(),
-        SocEvent::PowerUsbDetected => usb_detect.detected(true),
-        SocEvent::PowerUsbRemoved => usb_detect.detected(false),
+        SocEvent::PowerUsbPowerReady => {
+            debug!("USB power ready");
+            usb_detect.ready()
+        }
+        SocEvent::PowerUsbDetected => {
+            debug!("USB detected");
+            usb_detect.detected(true)
+        }
+        SocEvent::PowerUsbRemoved => {
+            debug!("USB removed");
+            usb_detect.detected(false)
+        }
         _ => (),
     })
     .await
@@ -188,19 +197,8 @@ pub type SysBadge = sysbadge::badge::Sysbadge<
 
 /// Create a new badge instance.
 fn init_badge() -> &'static Mutex<NoopRawMutex, SysBadge> {
-    let (system, valid) = match unsafe { sysbadge::system::SystemReader::from_linker_symbols() } {
-        Ok(system) => (system, true),
-        Err(e) => {
-            defmt::error!("Failed to read system");
-            (sysbadge::system::SystemReader::empty(), false)
-        }
-    };
-    let system = unsafe { sysbadge::system::SystemReader::from_linker_symbols() }.unwrap(); // FIXME: create empty system if it could not read and set to InvalidSystem
+    let system = unsafe { sysbadge::system::SystemReader::from_linker_symbols() }.ok();
     let mut sysbadge = Sysbadge::new(DummyDrawTarget, system);
-
-    if !valid {
-        sysbadge.set_current(CurrentMenu::InvalidSystem);
-    }
 
     unsafe { BADGE.write(Mutex::new(sysbadge)) }
 }

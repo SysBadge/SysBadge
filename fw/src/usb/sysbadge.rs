@@ -102,7 +102,11 @@ impl Handler for Control {
                 match req.value {
                     0 /* System name */ => block_on(async {
                         let badge = unsafe { crate::BADGE.assume_init_ref() }.lock().await;
-                        let out = badge.system.name().as_bytes();
+                        let system = match badge.system.as_ref() {
+                            Some(s) => s,
+                            None => return Some(InResponse::Rejected),
+                        };
+                        let out = system.name().as_bytes();
                         if buf.len() < out.len() {
                             return Some(InResponse::Rejected);
                         }
@@ -119,13 +123,16 @@ impl Handler for Control {
             sysusb::Request::GetMemberCount => {
                 defmt::assert!(buf.len() >= 2);
 
-                let count = block_on(async {
+                block_on(async {
                     let badge = unsafe { crate::BADGE.assume_init_ref() }.lock().await;
-                    badge.system.member_count() as u16
-                });
-                buf[0..2].copy_from_slice(&count.to_le_bytes());
-
-                Some(InResponse::Accepted(&buf[..2]))
+                    let system = match badge.system.as_ref() {
+                        Some(s) => s,
+                        None => return Some(InResponse::Rejected),
+                    };
+                    let count = system.member_count() as u16;
+                    buf[0..2].copy_from_slice(&count.to_le_bytes());
+                    Some(InResponse::Accepted(&buf[..2]))
+                })
             }
             sysusb::Request::GetMemberName => {
                 debug!("Sending member name {}", req.value);
@@ -133,11 +140,15 @@ impl Handler for Control {
                 let offset = req.value as usize;
                 block_on(async {
                     let badge = unsafe { crate::BADGE.assume_init_ref() }.lock().await;
-                    if badge.system.member_count() <= offset {
+                    let system = match badge.system.as_ref() {
+                        Some(s) => s,
+                        None => return Some(InResponse::Rejected),
+                    };
+                    if system.member_count() <= offset {
                         trace!("Member {} not found", offset);
                         Some(InResponse::Rejected)
                     } else {
-                        let member = badge.system.member(offset);
+                        let member = system.member(offset);
                         let name = member.name();
                         let name = name.as_bytes();
                         buf[..name.len()].copy_from_slice(name);
@@ -151,11 +162,15 @@ impl Handler for Control {
                 let offset = req.value as usize;
                 block_on(async {
                     let badge = unsafe { crate::BADGE.assume_init_ref() }.lock().await;
-                    if badge.system.member_count() <= offset {
+                    let system = match badge.system.as_ref() {
+                        Some(s) => s,
+                        None => return Some(InResponse::Rejected),
+                    };
+                    if system.member_count() <= offset {
                         trace!("Member {} not found", offset);
                         Some(InResponse::Rejected)
                     } else {
-                        let member = badge.system.member(offset);
+                        let member = system.member(offset);
                         let pronouns = member.pronouns();
                         let pronouns = pronouns.as_bytes();
                         buf[..pronouns.len()].copy_from_slice(pronouns);
@@ -211,7 +226,7 @@ async fn finalize_dnload(_req: Request) -> OutResponse {
         return OutResponse::Rejected;
     }
     match unsafe { ::sysbadge::system::SystemReader::from_linker_symbols() } {
-        Ok(system) => badge.system = system,
+        Ok(system) => badge.system = Some(system),
         Err(e) => {
             defmt::error!("Failed to read system");
             return OutResponse::Rejected;

@@ -278,7 +278,7 @@ where
     S: System,
 {
     pub display: D,
-    pub system: S,
+    pub system: Option<S>,
     pub serial: Option<&'static str>,
     current: CurrentMenu,
     hash: u16,
@@ -290,11 +290,10 @@ where
     <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
     S: System,
 {
-    pub fn new(display: D, system: S) -> Self {
-        let current = if system.is_valid() {
-            CurrentMenu::SystemName
-        } else {
-            CurrentMenu::InvalidSystem
+    pub fn new(display: D, system: Option<S>) -> Self {
+        let current = match &system {
+            Some(_) => CurrentMenu::SystemName,
+            None => CurrentMenu::InvalidSystem,
         };
 
         Self {
@@ -307,7 +306,10 @@ where
     }
 
     pub fn press(&mut self, button: Button) {
-        self.current.change(button, self.system.member_count());
+        self.current.change(
+            button,
+            self.system.as_ref().map(S::member_count).unwrap_or(0),
+        );
 
         #[cfg(feature = "defmt")]
         defmt::debug!(
@@ -334,7 +336,9 @@ where
             CurrentMenu::InvalidSystem => self.draw_invalid_system(),
             CurrentMenu::SystemName => self.draw_system_name(),
             CurrentMenu::Version => self.draw_version(),
-            CurrentMenu::Member(ref cur) => cur.draw(&self.system, &mut self.display),
+            CurrentMenu::Member(ref cur) => {
+                cur.draw(self.system.as_ref().expect("No system"), &mut self.display)
+            }
             CurrentMenu::Updating => todo!("draw updating"),
         }
     }
@@ -344,6 +348,11 @@ where
     }
 
     pub fn set_current(&mut self, state: CurrentMenu) {
+        if self.system.is_none() {
+            #[cfg(feature = "defmt")]
+            defmt::trace!("Cannot set, as there is no system");
+            return;
+        }
         self.current = state
     }
 
@@ -360,7 +369,7 @@ where
 
     fn draw_system_name(&mut self) -> DrawResult<D> {
         Text::with_alignment(
-            self.system.name().as_ref(),
+            self.system.as_ref().expect("No system").name().as_ref(),
             self.display.bounding_box().center(),
             MonoTextStyle::new(
                 &embedded_graphics::mono_font::ascii::FONT_10X20,
