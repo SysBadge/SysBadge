@@ -213,6 +213,50 @@ impl<T: UsbContext> UsbSysbadge<T> {
         Ok(())
     }
 
+    pub fn enter_update_system(&self, erase: bool) -> Result<()> {
+        self.handle.write_control(
+            constants::LIBUSB_ENDPOINT_OUT
+                | constants::LIBUSB_REQUEST_TYPE_VENDOR
+                | constants::LIBUSB_RECIPIENT_INTERFACE,
+            sysbadge::usb::Request::SystemUpload as u8,
+            erase as u16,
+            0,
+            &[0; 0],
+            self.timeout,
+        )?;
+        Ok(())
+    }
+
+    pub fn write_system(&self, offset: u16, data: &[u8]) -> Result<()> {
+        if data.len() > 64 || (data.len() % 4) != 0 || (offset % 4) != 0 {
+            return Err(Error::Unaligned);
+        }
+
+        self.handle.write_control(
+            constants::LIBUSB_ENDPOINT_OUT
+                | constants::LIBUSB_REQUEST_TYPE_VENDOR
+                | constants::LIBUSB_RECIPIENT_INTERFACE,
+            sysbadge::usb::Request::SystemDNLoad as u8,
+            offset,
+            0,
+            data,
+            self.timeout,
+        )?;
+        Ok(())
+    }
+
+    pub fn update_system(&self, erase: bool, data: &[u8]) -> Result<()> {
+        self.enter_update_system(erase)?;
+
+        let data = data.chunks(64);
+        for (i, chunk) in data.enumerate() {
+            self.write_system((i * 64) as u16, chunk)?;
+        }
+        self.write_system(0, &[])?;
+
+        Ok(())
+    }
+
     pub fn handle(&self) -> &DeviceHandle<T> {
         &self.handle
     }

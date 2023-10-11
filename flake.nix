@@ -322,7 +322,7 @@
             , cargo-watch, cargo-edit, cargo-outdated, cargo-asm, cargo-binutils
             , libiconv, flip-link, probe-run, SDL2, just, yarn, wasm-bindgen-cli
             , elf2uf2-rs, libusb1, capnproto-rust, capnproto, pkg-config
-            , openssl, nrf5-sdk }:
+            , openssl, nrf5-sdk, darwin }:
             mkShell {
               nativeBuildInputs = [
                 (fenixToolchain fenix)
@@ -347,7 +347,10 @@
                 wasm-bindgen-cli
               ] ++ lib.optional stdenv.isLinux gdb
                 ++ lib.optionals stdenv.isLinux [ pkg-config openssl ]
-                ++ lib.optional stdenv.isDarwin libiconv;
+                ++ lib.optionals stdenv.isDarwin [
+                  libiconv
+                  darwin.apple_sdk.frameworks.SystemConfiguration
+                ];
               inherit (self.checks.${system}.pre-commit) shellHook;
               NODE_OPTIONS = "--openssl-legacy-provider";
             };

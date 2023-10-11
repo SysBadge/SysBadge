@@ -3,6 +3,7 @@ pub enum Error {
     Usb(rusb::Error),
     Utf8(std::string::FromUtf8Error),
     NoDevice,
+    Unaligned,
     Io(std::io::Error),
 }
 
@@ -30,6 +31,7 @@ impl core::fmt::Display for Error {
             Self::Usb(err) => write!(F, "USB error: {}", err),
             Self::Utf8(err) => write!(F, "UTF-8 error: {}", err),
             Self::NoDevice => write!(F, "No device found"),
+            Self::Unaligned => write!(F, "Unaligned access"),
             Self::Io(err) => write!(F, "I/O error: {}", err),
         }
     }
