@@ -1,8 +1,9 @@
+use std::fmt::{Display, Formatter};
+use std::io::Write;
+
 use anyhow::Result;
 use clap::ValueEnum;
 use clio::Output;
-use std::fmt::{Display, Formatter};
-use std::io::Write;
 
 pub fn command() -> clap::Command {
     let cmd = clap::Command::new("dl")

@@ -6,24 +6,21 @@ extern crate defmt_rtt as _; // global logger
 extern crate embassy_nrf as _; // time driver
 extern crate panic_probe as _; // panic handler
 
-use defmt::*;
-
-use embassy_executor::Spawner;
-use embassy_nrf::gpio::{Level, Output};
-use embassy_time::{Delay, Duration, Timer};
-use nrf_softdevice::{Flash, Softdevice};
-use static_cell::make_static;
-
-use crate::ble::Server;
 use core::default::Default;
 use core::mem::MaybeUninit;
-use defmt::export::display;
+
+use defmt::*;
+use embassy_executor::Spawner;
+use embassy_nrf::gpio::{Level, Output};
 use embassy_nrf::usb::vbus_detect::SoftwareVbusDetect;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
-use nrf_softdevice::raw;
-use sysbadge::badge::{CurrentMenu, Sysbadge};
+use nrf_softdevice::{raw, Flash, Softdevice};
+use static_cell::make_static;
+use sysbadge::badge::Sysbadge;
 use sysbadge::system::SystemReader;
+
+use crate::ble::Server;
 
 mod ble;
 mod usb; // TODO: feature
@@ -36,8 +33,8 @@ fn main() -> ! {
     let mut config = embassy_nrf::config::Config::default();
     config.hfclk_source = embassy_nrf::config::HfclkSource::ExternalXtal;
     config.lfclk_source = embassy_nrf::config::LfclkSource::ExternalXtal;
-    config.gpiote_interrupt_priority = embassy_nrf::interrupt::Priority::P6;
-    config.time_interrupt_priority = embassy_nrf::interrupt::Priority::P5;
+    config.gpiote_interrupt_priority = embassy_nrf::interrupt::Priority::P2;
+    config.time_interrupt_priority = embassy_nrf::interrupt::Priority::P2;
     let p = embassy_nrf::init(config);
 
     // FIXME: ??
@@ -47,25 +44,38 @@ fn main() -> ! {
     core::mem::forget(pin);
 
     let executor = make_static!(embassy_executor::Executor::new());
-    executor.run(init);
+    executor.run(init)
 }
 
 //#[embassy_executor::task]
 fn init(spawner: Spawner) {
-    let sd = enable_softdevice(spawner.clone());
+    let sd = enable_softdevice();
     let flash = Flash::take(sd);
     unsafe {
         FLASH.write(Mutex::new(flash));
     }
+    //let usbd_reg = unsafe { nrf_softdevice::raw::sd_power_usbregstatus_get()}
     let vbus_detect = make_static!(SoftwareVbusDetect::new(true, true)); // FIXME: initial values
 
-    let badge = init_badge();
+    init_badge();
 
     let server = unwrap!(ble::Server::new(sd));
 
     unwrap!(spawner.spawn(softdevice_task(sd, vbus_detect)));
-    unwrap!(spawner.spawn(main_ble(server, sd)));
-    unwrap!(spawner.spawn(usb::init(spawner, vbus_detect)))
+    //unwrap!(spawner.spawn(main_ble(server, sd)));
+    unwrap!(spawner.spawn(usb::init(vbus_detect)));
+
+    for num in 0..48 {
+        let interrupt =
+            unsafe { core::mem::transmute::<u16, embassy_nrf::interrupt::Interrupt>(num) };
+        let is_enabled = embassy_nrf::interrupt::InterruptExt::is_enabled(interrupt);
+        let priority = embassy_nrf::interrupt::InterruptExt::get_priority(interrupt);
+
+        info!(
+            "Interrupt {}: Enabled = {}, Priority = {}",
+            num, is_enabled, priority
+        );
+    }
 }
 
 #[embassy_executor::task]
@@ -103,7 +113,7 @@ async fn main_ble(server: Server, sd: &'static Softdevice) {
 }
 
 // Softdevice
-fn enable_softdevice(spawner: Spawner) -> &'static mut Softdevice {
+fn enable_softdevice() -> &'static mut Softdevice {
     let config = nrf_softdevice::Config {
         clock: Some(raw::nrf_clock_lf_cfg_t {
             source: raw::NRF_CLOCK_LF_SRC_XTAL as u8,
@@ -135,7 +145,16 @@ fn enable_softdevice(spawner: Spawner) -> &'static mut Softdevice {
         ..Default::default()
     };
 
-    Softdevice::enable(&config)
+    let sd = Softdevice::enable(&config);
+
+    // enable usb events
+    unsafe {
+        nrf_softdevice::raw::sd_power_usbdetected_enable(1);
+        nrf_softdevice::raw::sd_power_usbpwrrdy_enable(1);
+        nrf_softdevice::raw::sd_power_usbremoved_enable(1);
+    }
+
+    sd
 }
 
 #[embassy_executor::task]
@@ -145,16 +164,16 @@ async fn softdevice_task(sd: &'static Softdevice, usb_detect: &'static SoftwareV
         SocEvent::PowerUsbPowerReady => {
             debug!("USB power ready");
             usb_detect.ready()
-        }
+        },
         SocEvent::PowerUsbDetected => {
             debug!("USB detected");
             usb_detect.detected(true)
-        }
+        },
         SocEvent::PowerUsbRemoved => {
             debug!("USB removed");
             usb_detect.detected(false)
-        }
-        _ => (),
+        },
+        v => trace!("sd event {:?}", v),
     })
     .await
 }
@@ -181,7 +200,7 @@ impl embedded_graphics_core::draw_target::DrawTarget for DummyDrawTarget {
     type Color = embedded_graphics_core::pixelcolor::BinaryColor;
     type Error = ();
 
-    fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
+    fn draw_iter<I>(&mut self, _pixels: I) -> Result<(), Self::Error>
     where
         I: IntoIterator<Item = embedded_graphics_core::Pixel<Self::Color>>,
     {
@@ -198,7 +217,17 @@ pub type SysBadge = sysbadge::badge::Sysbadge<
 /// Create a new badge instance.
 fn init_badge() -> &'static Mutex<NoopRawMutex, SysBadge> {
     let system = unsafe { sysbadge::system::SystemReader::from_linker_symbols() }.ok();
-    let mut sysbadge = Sysbadge::new(DummyDrawTarget, system);
+    let sysbadge = Sysbadge::new(DummyDrawTarget, system);
+    info!("Opend system: {:?}", sysbadge.system.is_some());
+
+    #[cfg(debug_assertions)]
+    if sysbadge.system.is_some() {
+        use sysbadge::system::System;
+        info!(
+            "Loaded system from flash with name: {}",
+            sysbadge.system.as_ref().unwrap().name()
+        );
+    }
 
     unsafe { BADGE.write(Mutex::new(sysbadge)) }
 }

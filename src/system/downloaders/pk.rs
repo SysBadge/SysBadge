@@ -1,8 +1,7 @@
 use alloc::string::{String, ToString};
 
-use crate::system::{MemberStrings, SystemVec};
-
 use super::transform_name;
+use crate::system::{MemberStrings, SystemVec};
 
 pub struct PkDownloader {
     pub client: pkrs::client::PkClient,

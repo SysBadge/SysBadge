@@ -5,6 +5,7 @@ pub enum Error {
     NoDevice,
     Unaligned,
     Io(std::io::Error),
+    IntEnumError(u8),
 }
 
 impl From<rusb::Error> for Error {
@@ -25,14 +26,21 @@ impl From<std::io::Error> for Error {
     }
 }
 
+/*impl<T> From<sysbadge::usb::IntEnumError<T> for Error {
+    fn from(err: sysbadge::usb::IntEnumError<T>) -> Self {
+        Self::IntEnumError(err.value)
+    }
+}*/
+
 impl core::fmt::Display for Error {
-    fn fmt(&self, F: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::Usb(err) => write!(F, "USB error: {}", err),
-            Self::Utf8(err) => write!(F, "UTF-8 error: {}", err),
-            Self::NoDevice => write!(F, "No device found"),
-            Self::Unaligned => write!(F, "Unaligned access"),
-            Self::Io(err) => write!(F, "I/O error: {}", err),
+            Self::Usb(err) => write!(f, "USB error: {}", err),
+            Self::Utf8(err) => write!(f, "UTF-8 error: {}", err),
+            Self::NoDevice => write!(f, "No device found"),
+            Self::Unaligned => write!(f, "Unaligned access"),
+            Self::Io(err) => write!(f, "I/O error: {}", err),
+            Self::IntEnumError(val) => write!(f, "Int enum error {}", val),
         }
     }
 }
@@ -43,7 +51,9 @@ impl std::error::Error for Error {
             Self::Usb(err) => Some(err),
             Self::Utf8(err) => Some(err),
             Self::NoDevice => None,
+            Self::Unaligned => None,
             Self::Io(err) => Some(err),
+            Self::IntEnumError(val) => None,
         }
     }
 }

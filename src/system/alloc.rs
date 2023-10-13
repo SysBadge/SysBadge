@@ -1,7 +1,7 @@
+use alloc::string::String;
+
 use crate::system::Member;
 use crate::System;
-
-use alloc::string::String;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, Clone)]
@@ -68,10 +68,10 @@ impl SystemVec {
                 match source_id {
                     SourceId::PluralKit(hid) => {
                         system.set_pk_hid(hid.as_str().into());
-                    }
+                    },
                     SourceId::Pronouns(id) => {
                         system.set_pronouns(id.as_str().into());
-                    }
+                    },
                 }
             }
 
@@ -143,7 +143,7 @@ mod uf2 {
                         chunk.push(0);
                     }
                     chunk
-                }
+                },
             };
             let mut flags: u32 = 0;
             if family_id != 0 {

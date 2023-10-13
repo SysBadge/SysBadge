@@ -1,9 +1,6 @@
+use alloc::format;
+use alloc::string::{String, ToString};
 use core::cmp::Ordering;
-
-use alloc::{
-    format,
-    string::{String, ToString},
-};
 
 const BASE_URL: &str = "https://pronouns.cc/api/";
 
@@ -90,9 +87,11 @@ impl super::Downloader for PronounsDownloader {
 }
 
 use alloc::vec::Vec;
+
 use serde::{Deserialize, Serialize};
 
-use crate::system::{downloaders::transform_name, MemberStrings};
+use crate::system::downloaders::transform_name;
+use crate::system::MemberStrings;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct User {

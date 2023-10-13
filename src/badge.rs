@@ -1,13 +1,15 @@
-use crate::system::Member;
-use crate::{Button, DrawResult, System};
 use core::hint::unreachable_unchecked;
 use core::ptr;
+
 use embedded_graphics::geometry::AnchorY;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle, StyledDrawable};
 use embedded_graphics::text::{Alignment, Text};
+
+use crate::system::Member;
+use crate::{Button, DrawResult, System};
 
 #[cfg(not(feature = "invert"))]
 const BINARY_COLOR_OFF: BinaryColor = BinaryColor::Off;
@@ -83,14 +85,14 @@ impl CurrentMembers {
                 } else {
                     self.sel.0 = self.len - 1;
                 }
-            }
+            },
             Button::Up | Button::Down if self.sel.1 == Select::Select => {
                 if button == Button::Up {
                     self.sel.0 = dec_wrapping(self.sel.0, self.len - 1);
                 } else {
                     self.sel.0 = inc_wrapping(self.sel.0, self.len - 1);
                 }
-            }
+            },
             Button::Up | Button::Down if self.sel.1 == Select::Edit => {
                 if button == Button::Up {
                     self.members[self.sel.0 as usize].id =
@@ -99,31 +101,31 @@ impl CurrentMembers {
                     self.members[self.sel.0 as usize].id =
                         dec_wrapping(self.members[self.sel.0 as usize].id, members as u16 - 1);
                 }
-            }
+            },
             Button::C if self.sel.1 == Select::Edit => {
                 self.len -= 1;
                 if self.sel.0 != (self.len - 1) {
                     self.members[self.sel.0 as usize] = self.members[self.len as usize];
                 }
                 self.sel.1 = Select::None;
-            }
+            },
             Button::C => {
                 self.sel.1 = Select::None;
                 if self.len < 4 {
                     self.len += 1;
                 }
-            }
+            },
             Button::B => {
                 if self.sel.1 == Select::Select {
                     self.sel.1 = Select::Edit;
                 } else {
                     self.sel.1 = Select::Select;
                 }
-            }
+            },
             _ => {
                 #[cfg(feature = "defmt")]
                 defmt::warn!("Unhandled member button press: {:?}", button)
-            }
+            },
         }
     }
 
@@ -143,10 +145,10 @@ impl CurrentMembers {
                     self.sel_for_cell(0),
                 )
                 .draw(target)?;
-            }
+            },
             2 => {
                 self.draw_two((0, 1), system, target.bounding_box(), target)?;
-            }
+            },
             3 => {
                 DrawableMember::new(
                     system.member(self.members[0].id as usize),
@@ -172,7 +174,7 @@ impl CurrentMembers {
                     self.sel_for_cell(2),
                 )
                 .draw(target)?;
-            }
+            },
             4 => {
                 self.draw_two(
                     (0, 1),
@@ -190,7 +192,7 @@ impl CurrentMembers {
                         .resized_height(target.bounding_box().size.height / 2, AnchorY::Bottom),
                     target,
                 )?;
-            }
+            },
             _ => unsafe { unreachable_unchecked() },
         }
 
@@ -244,10 +246,10 @@ impl CurrentMenu {
             Self::Version if button == Button::B => *self = Self::SystemName,
             Self::SystemName if button == Button::C => {
                 *self = Self::Member(CurrentMembers::default())
-            }
+            },
             Self::Member(ref c) if button == Button::C && c.len == 1 && c.sel.1 == Select::Edit => {
                 *self = Self::SystemName
-            }
+            },
             Self::Member(c) => c.button_press(button, members),
             Self::InvalidSystem => (),
             Self::Updating => (),
@@ -257,16 +259,18 @@ impl CurrentMenu {
 
                 #[cfg(feature = "std")]
                 println!("Unhandled button press: {:?}", button);
-            }
+            },
         }
     }
 
     pub fn as_bytes(&self) -> &[u8] {
+        // FIXME: capnp
         let ptr = self as *const Self as *const u8;
         unsafe { core::slice::from_raw_parts(ptr, core::mem::size_of::<Self>()) }
     }
 
     pub fn from_bytes(slice: &[u8]) -> Self {
+        // FIXME: capnp
         let ptr = slice.as_ptr() as *const Self;
         unsafe { ptr::read(ptr) }
     }
@@ -338,7 +342,7 @@ where
             CurrentMenu::Version => self.draw_version(),
             CurrentMenu::Member(ref cur) => {
                 cur.draw(self.system.as_ref().expect("No system"), &mut self.display)
-            }
+            },
             CurrentMenu::Updating => todo!("draw updating"),
         }
     }
@@ -348,6 +352,12 @@ where
     }
 
     pub fn set_current(&mut self, state: CurrentMenu) {
+        if state == CurrentMenu::Updating || state == CurrentMenu::InvalidSystem {
+            self.current = state;
+            self.system = None;
+            return;
+        }
+
         if self.system.is_none() {
             #[cfg(feature = "defmt")]
             defmt::trace!("Cannot set, as there is no system");
@@ -571,7 +581,7 @@ where
                     &embedded_graphics::mono_font::ascii::FONT_6X10,
                     &str[..str_len],
                 )
-            }
+            },
         };
 
         // FIXME: brackets around text

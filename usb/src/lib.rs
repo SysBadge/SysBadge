@@ -1,328 +1,233 @@
-#![feature(return_position_impl_trait_in_trait)]
+#![feature(return_position_impl_trait_in_trait, result_flattening)]
+#![feature(iter_array_chunks)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use log::info;
-use rusb::{
-    constants, Device, DeviceDescriptor, DeviceHandle, Hotplug, HotplugBuilder, Registration,
-    UsbContext,
-};
-use std::borrow::Cow;
-use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 pub use rusb;
-pub mod err;
+use rusb::UsbContext;
 
+pub mod err;
 pub use err::{Error, Result};
+use sysbadge::badge::CurrentMenu;
 use sysbadge::system::Member;
-use sysbadge::usb::{BootSel, VersionType};
-use sysbadge::{badge::CurrentMenu, System};
+use sysbadge::usb::{BootSel, SystemUpdateStatus, VersionType};
+use sysbadge::System;
+use tracing::*;
+
+use crate::raw::UsbSysBadgeRaw;
+
+pub mod raw;
 
 pub const VID: u16 = sysbadge::usb::VID;
 pub const PID: u16 = sysbadge::usb::PID;
 
-pub struct UsbSysbadge<T: UsbContext> {
-    context: T,
-    handle: DeviceHandle<T>,
-    timeout: std::time::Duration,
+/// USB connected SysBadge.
+pub struct UsbSysBadge<T: UsbContext> {
+    inner: UsbSysBadgeRaw<T>,
 }
 
-impl<T: UsbContext> UsbSysbadge<T> {
-    pub fn open(mut handle: DeviceHandle<T>) -> Result<Self> {
-        let _ = handle.set_auto_detach_kernel_driver(true);
-        handle.set_active_configuration(0)?;
-
-        Ok(Self {
-            context: handle.context().clone(),
-            handle,
-            timeout: std::time::Duration::from_secs(1),
-        })
+impl<T: UsbContext> UsbSysBadge<T> {
+    pub fn find_badges(context: T) -> Result<Vec<Self>> {
+        UsbSysBadgeRaw::find_devices(context.clone())
+            .map(|v| v.into_iter().map(|v| v.into()).collect())
     }
 
-    pub fn find(mut context: T) -> Result<Self> {
-        let (device, descriptor, mut handle) =
-            Self::open_device(&mut context, sysbadge::usb::VID, sysbadge::usb::PID)?
-                .ok_or(Error::NoDevice)?;
-
-        Self::open(handle)
+    pub fn find_badge(context: T) -> Result<Self> {
+        Self::find_badges(context)
+            .map(|mut v| v.pop().ok_or(Error::NoDevice))
+            .flatten()
     }
 
-    pub fn press(&self, button: sysbadge::Button) -> Result {
-        self.handle.write_control(
-            constants::LIBUSB_ENDPOINT_OUT
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::ButtonPress as u8,
-            button as u16,
-            0,
-            &[0; 0],
-            self.timeout,
-        )?;
-
-        Ok(())
+    /// Issues a press button command to the SysBadge.
+    #[inline(always)]
+    pub fn button_press(&self, button: sysbadge::Button) -> Result<()> {
+        self.inner.button_press(button)
     }
 
+    /// Get the system name currently active on the SysBadge.
+    #[inline(always)]
     pub fn system_name(&self) -> Result<String> {
-        let mut buf = [0; 64];
-        let n = self.handle.read_control(
-            constants::LIBUSB_ENDPOINT_IN
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::GetSystemName as u8,
-            0,
-            0,
-            &mut buf,
-            self.timeout,
-        )?;
+        self.inner.system_name()
+    }
 
+    /// Get the member count of the currently loaded system on the SysBadge.
+    #[inline(always)]
+    pub fn system_member_count(&self) -> Result<u16> {
+        self.inner.system_member_count()
+    }
+
+    /// Get the member name of a member of the currently loaded system on the SysBadge.
+    #[inline(always)]
+    pub fn system_member_name(&self, index: u16) -> Result<String> {
+        self.inner.system_member_name(index)
+    }
+
+    /// Get the member pronouns of a member of the currently loaded system on the SysBadge.
+    #[inline(always)]
+    pub fn system_member_pronouns(&self, index: u16) -> Result<String> {
+        self.inner.system_member_pronouns(index)
+    }
+
+    /// Get the current display state of the SysBadge.
+    #[inline(always)]
+    pub fn display_state(&self) -> Result<CurrentMenu> {
+        self.inner.get_state()
+    }
+
+    /// Sets the current display state of the SysBadge.
+    #[inline(always)]
+    pub fn set_display_state(&self, state: &CurrentMenu) -> Result<()> {
+        self.inner.set_state(&state)
+    }
+
+    /// Request to update the display of the SysBadge.
+    #[inline(always)]
+    pub fn update_display(&self) -> Result<()> {
+        self.inner.update_display()
+    }
+
+    /// Read the current SemVer version of the SysBadge.
+    pub fn semver_version(&self) -> Result<String> {
+        let mut buf = [0; 64];
+        let n = self.inner.read_version(VersionType::SemVer, &mut buf)?;
         Ok(String::from_utf8((&buf[..n]).to_vec())?)
     }
 
-    pub fn member_count(&self) -> Result<u16> {
-        let mut buf = [0; 2];
-        self.handle.read_control(
-            constants::LIBUSB_ENDPOINT_IN
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::GetMemberCount as u8,
-            0,
-            0,
-            &mut buf,
-            self.timeout,
-        )?;
-
-        let count = u16::from_le_bytes(buf);
-        Ok(count)
+    /// Reboot the Sysbadge.
+    #[inline(always)]
+    pub fn reboot(self) -> Result {
+        self.inner.reboot(BootSel::Application)
     }
 
-    pub fn member_name(&self, index: u16) -> Result<String> {
-        let mut buf = [0; 64];
-        let n = self.handle.read_control(
-            constants::LIBUSB_ENDPOINT_IN
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::GetMemberName as u8,
-            index,
-            0,
-            &mut buf,
-            self.timeout,
-        )?;
+    pub fn system_update_blocking(
+        &self,
+        erase: bool,
+        data: impl Iterator<Item = u8>,
+    ) -> Result<usize> {
+        self.inner.system_prepare_update(erase)?;
+        let status = self.system_update_wait_status_blocking()?;
+        debug!("system update status: {:?}", status);
 
-        Ok(String::from_utf8((&buf[..n]).to_vec())?)
-    }
-
-    pub fn member_pronouns(&self, index: u16) -> Result<String> {
-        let mut buf = [0; 64];
-        let n = self.handle.read_control(
-            constants::LIBUSB_ENDPOINT_IN
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::GetMemberPronouns as u8,
-            index,
-            0,
-            &mut buf,
-            self.timeout,
-        )?;
-
-        Ok(String::from_utf8((&buf[..n]).to_vec())?)
-    }
-
-    pub fn get_state(&self) -> Result<CurrentMenu> {
-        let mut buf = [0; core::mem::size_of::<CurrentMenu>()];
-        self.handle.read_control(
-            constants::LIBUSB_ENDPOINT_IN
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::GetState as u8,
-            0,
-            0,
-            &mut buf,
-            self.timeout,
-        )?;
-
-        Ok(CurrentMenu::from_bytes(&buf))
-    }
-
-    pub fn set_state(&self, state: &CurrentMenu) -> Result {
-        let buf = state.as_bytes();
-        self.handle.write_control(
-            constants::LIBUSB_ENDPOINT_OUT
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::SetState as u8,
-            0,
-            0,
-            &buf,
-            self.timeout,
-        )?;
-
-        Ok(())
-    }
-
-    pub fn update_display(&self) -> Result {
-        self.handle.write_control(
-            constants::LIBUSB_ENDPOINT_OUT
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::UpdateDisplay as u8,
-            0,
-            0,
-            &[0; 0],
-            self.timeout,
-        )?;
-
-        Ok(())
-    }
-
-    pub fn get_version(&self, version: VersionType) -> Result<[u8; 64]> {
-        let mut buf = [0; 64];
-        let n = self.handle.read_control(
-            constants::LIBUSB_ENDPOINT_IN
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::GetVersion as u8,
-            version as u16,
-            0,
-            &mut buf,
-            self.timeout,
-        )?;
-        Ok(buf)
-    }
-
-    pub fn get_version_string(&self, version: VersionType) -> Result<String> {
-        let buf = self.get_version(version)?;
-        Ok(String::from_utf8(buf.to_vec())?)
-    }
-
-    pub fn get_unique_id(&self) -> Result<u64> {
-        let buf = self.get_version(VersionType::UniqueId)?;
-        let id = u64::from_le_bytes(buf[..8].as_ref().try_into().unwrap());
-        Ok(id)
-    }
-
-    pub fn reboot(&self, bootsel: BootSel) -> Result<()> {
-        self.handle.write_control(
-            constants::LIBUSB_ENDPOINT_OUT
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::Reboot as u8,
-            bootsel as u16,
-            0,
-            &[0; 0],
-            self.timeout,
-        )?;
-        Ok(())
-    }
-
-    pub fn enter_update_system(&self, erase: bool) -> Result<()> {
-        self.handle.write_control(
-            constants::LIBUSB_ENDPOINT_OUT
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::SystemUpload as u8,
-            erase as u16,
-            0,
-            &[0; 0],
-            self.timeout,
-        )?;
-        Ok(())
-    }
-
-    pub fn write_system(&self, offset: u16, data: &[u8]) -> Result<()> {
-        if data.len() > 64 || (data.len() % 4) != 0 || (offset % 4) != 0 {
-            return Err(Error::Unaligned);
-        }
-
-        self.handle.write_control(
-            constants::LIBUSB_ENDPOINT_OUT
-                | constants::LIBUSB_REQUEST_TYPE_VENDOR
-                | constants::LIBUSB_RECIPIENT_INTERFACE,
-            sysbadge::usb::Request::SystemDNLoad as u8,
-            offset,
-            0,
-            data,
-            self.timeout,
-        )?;
-        Ok(())
-    }
-
-    pub fn update_system(&self, erase: bool, data: &[u8]) -> Result<()> {
-        self.enter_update_system(erase)?;
-
-        let data = data.chunks(64);
-        for (i, chunk) in data.enumerate() {
-            self.write_system((i * 64) as u16, chunk)?;
-        }
-        self.write_system(0, &[])?;
-
-        Ok(())
-    }
-
-    pub fn handle(&self) -> &DeviceHandle<T> {
-        &self.handle
-    }
-
-    pub fn handle_mut(&mut self) -> &mut DeviceHandle<T> {
-        &mut self.handle
-    }
-
-    fn open_device(
-        context: &mut T,
-        vid: u16,
-        pid: u16,
-    ) -> Result<Option<(Device<T>, DeviceDescriptor, DeviceHandle<T>)>> {
-        let devices = match context.devices() {
-            Ok(d) => d,
-            Err(_) => return Ok(None),
-        };
-
-        for device in devices.iter() {
-            let device_desc = match device.device_descriptor() {
-                Ok(d) => d,
-                Err(_) => continue,
-            };
-
-            if device_desc.vendor_id() == vid && device_desc.product_id() == pid {
-                let handler = device.open()?;
-                return Ok(Some((device, device_desc, handler)));
+        let mut data = data.array_chunks::<64>();
+        let mut offset = 0;
+        loop {
+            if let Some(data) = data.next() {
+                self.inner.system_write_chunk(offset, &data)?;
+                offset += 64;
+                let status = self.system_update_wait_status_blocking()?;
+                debug!("system update status: {:?}", status);
+            } else {
+                break;
             }
         }
+        if let Some(reminder) = data.into_remainder() {
+            if (reminder.len() % 4) != 0 {
+                return Err(Error::Unaligned);
+            }
+            let data: Vec<u8> = reminder.collect();
+            self.inner.system_write_chunk(offset, &data)?;
+            let status = self.system_update_wait_status_blocking()?;
+            debug!("system update status: {:?}", status);
+        }
+        self.inner.system_write_chunk(0, &[])?;
+        let status = self.system_update_wait_status_blocking()?;
+        debug!("system update status: {:?}", status);
 
-        Ok(None)
+        Ok(offset as usize)
     }
-}
 
-impl<T: UsbContext> System for UsbSysbadge<T> {
-    fn name(&self) -> Cow<'_, str> {
-        Cow::Owned(self.system_name().unwrap_or_else(|_| "Unknown".to_string()))
+    // TODO: Reboot bootloader (maybe also via DFU)
+
+    /// Set the timeout for USB transfers.
+    #[inline(always)]
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        self.inner.set_timeout(timeout)
     }
 
-    fn member_count(&self) -> usize {
-        self.member_count().unwrap_or(0) as usize
+    /// Return a reference to the inner `rusb::DeviceHandle`.
+    #[inline(always)]
+    pub fn handle(&self) -> &rusb::DeviceHandle<T> {
+        self.inner.handle()
     }
 
-    fn member(&self, index: usize) -> UsbMember<T> {
-        UsbMember {
-            badge: self,
-            id: index,
+    /// Return a mutable reference to the inner `rusb::DeviceHandle`.
+    #[inline(always)]
+    pub fn handle_mut(&mut self) -> &mut rusb::DeviceHandle<T> {
+        self.inner.handle_mut()
+    }
+
+    /// Wait untill a success status is returned from the SysBadge.
+    pub fn system_update_wait_status_blocking(&self) -> Result<SystemUpdateStatus> {
+        let mut duration = Duration::from_millis(100);
+        loop {
+            let status = self.inner.system_update_status()?;
+            trace!(status = ?status, timeout = ?duration, "Waiting for system update status");
+            match status {
+                SystemUpdateStatus::Writing => {
+                    std::thread::sleep(duration);
+                },
+                v => return Ok(v),
+            }
+            duration *= 2;
         }
     }
 }
 
-pub struct UsbMember<'a, T: UsbContext + 'a> {
-    badge: &'a UsbSysbadge<T>,
-    id: usize,
+impl<T: UsbContext> From<UsbSysBadgeRaw<T>> for UsbSysBadge<T> {
+    fn from(inner: UsbSysBadgeRaw<T>) -> Self {
+        Self { inner }
+    }
 }
 
-impl<'u, T: UsbContext + 'u> Member for UsbMember<'u, T> {
-    fn name<'a>(&'a self) -> impl AsRef<str> + 'a {
-        self.badge
-            .member_name(self.id as u16)
-            .unwrap_or_else(|_| "Unknown".to_string())
+impl<T: UsbContext> From<UsbSysBadge<T>> for UsbSysBadgeRaw<T> {
+    fn from(badge: UsbSysBadge<T>) -> Self {
+        badge.inner
+    }
+}
+
+impl<T: UsbContext> System for UsbSysBadge<T> {
+    #[inline]
+    fn name(&self) -> String {
+        self.system_name().unwrap()
     }
 
-    fn pronouns<'a>(&'a self) -> impl AsRef<str> + 'a {
-        self.badge
-            .member_pronouns(self.id as u16)
-            .unwrap_or_else(|_| "Unknown".to_string())
+    #[inline]
+    fn member_count(&self) -> usize {
+        self.system_member_count().unwrap() as usize
+    }
+
+    #[inline]
+    fn member(&self, index: usize) -> UsbSysBadgeMember<T> {
+        let count = self.member_count();
+        if index >= count {
+            panic!(
+                "index out of bounds: the len is {} but the index is {}",
+                count, index
+            );
+        }
+
+        UsbSysBadgeMember {
+            badge: self,
+            index: index as u16,
+        }
+    }
+}
+
+/// Reference to a member of the currently loaded system on the SysBadge.
+pub struct UsbSysBadgeMember<'u, T: UsbContext + 'u> {
+    badge: &'u UsbSysBadge<T>,
+    index: u16,
+}
+
+impl<'u, T: UsbContext + 'u> Member for UsbSysBadgeMember<'u, T> {
+    #[inline]
+    fn name(&self) -> String {
+        self.badge.system_member_name(self.index).unwrap()
+    }
+
+    #[inline]
+    fn pronouns(&self) -> String {
+        self.badge.system_member_pronouns(self.index).unwrap()
     }
 }

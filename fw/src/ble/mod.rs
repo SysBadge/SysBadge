@@ -1,14 +1,10 @@
 use core::cell::{Cell, RefCell};
 
 use defmt::*;
-use nrf_softdevice::{
-    ble::{
-        gatt_server::{self, RegisterError},
-        security::SecurityHandler,
-        Connection, EncryptionInfo, IdentityKey, MasterId, SecurityMode, Uuid,
-    },
-    Softdevice,
-};
+use nrf_softdevice::ble::gatt_server::{self, RegisterError};
+use nrf_softdevice::ble::security::SecurityHandler;
+use nrf_softdevice::ble::{Connection, EncryptionInfo, IdentityKey, MasterId, SecurityMode, Uuid};
+use nrf_softdevice::Softdevice;
 
 const BATTERY_SERVICE: Uuid = Uuid::new_16(0x180f);
 const BATTERY_LEVEL: Uuid = Uuid::new_16(0x2a19);
@@ -153,6 +149,7 @@ impl BatteryService {
     ) -> Result<(), gatt_server::SetValueError> {
         gatt_server::set_value(sd, self.value_handle, &[val])
     }
+
     pub fn battery_level_notify(
         &self,
         conn: &Connection,

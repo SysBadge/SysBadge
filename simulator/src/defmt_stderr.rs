@@ -1,6 +1,7 @@
-use defmt::Formatter;
 use std::io::{stderr, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
+
+use defmt::Formatter;
 
 #[defmt::global_logger]
 struct Logger;

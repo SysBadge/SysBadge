@@ -1,7 +1,6 @@
-use pkrs::client::PkClient;
-use pkrs::model::PkId;
-use std::mem::MaybeUninit;
 use std::{mem, ptr};
+
+use pkrs::model::PkId;
 use sysbadge::system::SystemVec;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::{JsCast, JsValue};
@@ -161,7 +160,7 @@ impl System {
     fn set_system(&self) {
         unsafe {
             let badge = crate::badge::SYSBADGE.as_mut().unwrap();
-            badge.system = self.get_system().clone();
+            badge.system = Some(self.get_system().clone());
             badge.reset();
             badge.draw().unwrap();
             badge.display.flush().unwrap();

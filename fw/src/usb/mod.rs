@@ -1,25 +1,18 @@
-use core::mem::MaybeUninit;
+use ::sysbadge::usb as sysusb;
+use defmt::*;
 use embassy_executor::Spawner;
 use embassy_nrf::usb::Driver;
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
-use embassy_sync::mutex::Mutex;
 use embassy_usb::{Builder, Config};
-use nrf_softdevice::Flash;
 use static_cell::make_static;
 
-use ::sysbadge::usb as sysusb;
-
-mod sysbadge;
+pub mod sysbadge;
 
 embassy_nrf::bind_interrupts!(struct Irqs {
     USBD => embassy_nrf::usb::InterruptHandler<embassy_nrf::peripherals::USBD>;
 });
 
 #[embassy_executor::task]
-pub async fn init(
-    spawner: Spawner,
-    vbus_detect: &'static embassy_nrf::usb::vbus_detect::SoftwareVbusDetect,
-) {
+pub async fn init(vbus_detect: &'static embassy_nrf::usb::vbus_detect::SoftwareVbusDetect) {
     let driver = Driver::new(
         unsafe { embassy_nrf::peripherals::USBD::steal() },
         Irqs,
@@ -51,5 +44,5 @@ pub async fn init(
 
     let mut usb = builder.build();
 
-    usb.run().await;
+    embassy_futures::join::join(sysbadge_class.run(), usb.run()).await;
 }

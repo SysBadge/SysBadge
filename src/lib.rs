@@ -1,16 +1,16 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(ptr_metadata)]
-#![feature(return_position_impl_trait_in_trait)]
-#![cfg_attr(feature = "downloaders", feature(async_fn_in_trait, error_in_core))]
+#![feature(return_position_impl_trait_in_trait, error_in_core)]
+#![cfg_attr(feature = "downloaders", feature(async_fn_in_trait))]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
-
-#[cfg(feature = "wasm")]
-use wasm_bindgen::prelude::wasm_bindgen;
+extern crate core;
 
 pub use system::System;
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::wasm_bindgen;
 
 pub mod system;
 pub mod usb;

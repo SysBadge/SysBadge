@@ -12,9 +12,9 @@ pub mod system_capnp {
 pub use alloc::Updater;
 #[cfg(feature = "alloc")]
 pub use alloc::{MemberStrings, SystemVec};
-use capnp::message::ReaderSegments;
 
 pub use capnp;
+use capnp::message::ReaderSegments;
 
 pub trait Member {
     fn name<'a>(&'a self) -> impl AsRef<str> + 'a;

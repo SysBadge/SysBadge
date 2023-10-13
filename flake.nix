@@ -320,18 +320,19 @@
           pkgs = nixpkgsFor.${system};
           shell = { lib, stdenv, mkShell, fenix, rust-analyzer-nightly, gdb
             , cargo-watch, cargo-edit, cargo-outdated, cargo-asm, cargo-binutils
-            , libiconv, flip-link, probe-run, SDL2, just, yarn, wasm-bindgen-cli
-            , elf2uf2-rs, libusb1, capnproto-rust, capnproto, pkg-config
-            , openssl, nrf5-sdk, darwin }:
+            , cargo-expand, libiconv, flip-link, probe-run, SDL2, just, yarn
+            , wasm-bindgen-cli, elf2uf2-rs, libusb1, capnproto-rust, capnproto
+            , pkg-config, openssl, nrf5-sdk, darwin }:
             mkShell {
               nativeBuildInputs = [
                 (fenixToolchain fenix)
-                #rust-analyzer-nightly
+                rust-analyzer-nightly
                 cargo-watch
                 cargo-edit
                 cargo-outdated
                 cargo-asm
                 cargo-binutils
+                cargo-expand
                 just
                 flip-link
                 probe-run

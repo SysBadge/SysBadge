@@ -1,5 +1,10 @@
 #![feature(if_let_guard)]
 
+use std::io;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
 use crossterm::event;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
@@ -9,18 +14,10 @@ use ratatui::symbols::DOT;
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Padding, Paragraph, Tabs};
 use ratatui::Terminal;
 use rusb::{Context, Device, DeviceHandle, Hotplug, UsbContext};
-use std::io;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use sysbadge::badge::{CurrentMenu, Select};
 use sysbadge::usb::BootSel;
-use sysbadge::{
-    badge::{CurrentMenu, Select},
-    Button,
-};
-use sysbadge_usb::UsbSysbadge;
-
-use sysbadge_usb::{Error, Result};
+use sysbadge::Button;
+use sysbadge_usb::{Error, Result, UsbSysBadge};
 
 fn main() -> Result<()> {
     pretty_env_logger::init();
@@ -74,7 +71,7 @@ fn run<U: UsbContext + 'static>(
                     KeyCode::Char('q') => break,
                     _ => {
                         badge.as_mut().map(|b| b.handle_key(key));
-                    }
+                    },
                 }
             }
         }
@@ -122,9 +119,9 @@ impl<T: UsbContext + 'static> Registration<T> {
         })
     }
 
-    fn take(&self) -> Result<UsbSysbadge<T>> {
+    fn take(&self) -> Result<UsbSysBadge<T>> {
         let handle = self.handle.lock().unwrap().take().ok_or(Error::NoDevice)?;
-        Ok(UsbSysbadge::open(handle)?)
+        Ok(UsbSysBadge::open(handle)?)
     }
 
     fn has_device(&self) -> bool {
@@ -145,7 +142,7 @@ impl<T: UsbContext> Hotplug<T> for HotplugHandler<T> {
             Err(e) => {
                 info!("Error opening device: {:?}", e);
                 return;
-            }
+            },
         };
         self.has_device.store(true, Ordering::Relaxed);
         self.handle.lock().unwrap().replace(handle);
@@ -172,13 +169,13 @@ impl Current {
 }
 
 struct App<U: UsbContext> {
-    badge: UsbSysbadge<U>,
+    badge: UsbSysBadge<U>,
     name: String,
     current: Current,
 }
 
 impl<U: UsbContext> App<U> {
-    pub fn new(mut badge: UsbSysbadge<U>) -> Self {
+    pub fn new(mut badge: UsbSysBadge<U>) -> Self {
         let name = badge.system_name().unwrap_or("Unknown".to_string());
 
         let count = badge.member_count().unwrap_or(0);
@@ -343,7 +340,7 @@ impl<U: UsbContext> App<U> {
                     .block(Block::default().borders(Borders::ALL))
                     .alignment(Alignment::Center);
                 f.render_widget(paragraph, a);
-            }
+            },
             CurrentMenu::Version => {
                 let text = Text::styled(
                     format!(
@@ -358,7 +355,7 @@ impl<U: UsbContext> App<U> {
                     .block(Block::default().borders(Borders::ALL))
                     .alignment(Alignment::Center);
                 f.render_widget(paragraph, a);
-            }
+            },
             CurrentMenu::Member(members) => {
                 let mut vec = Vec::new();
                 for i in 0..members.len {
@@ -392,10 +389,10 @@ impl<U: UsbContext> App<U> {
                     });
 
                 f.render_stateful_widget(list, a, &mut state);
-            }
+            },
             _ => {
                 todo!()
-            }
+            },
         }
     }
 

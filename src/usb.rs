@@ -1,104 +1,78 @@
 //! type enums used for USB controll
 
+use int_enum::IntEnum;
+
 pub const VID: u16 = 0x33ff;
 pub const PID: u16 = 0x4025;
 
+pub type IntEnumError<T> = int_enum::IntEnumError<T>;
+
+/// USB Request types
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, IntEnum)]
 pub enum Request {
+    /// Request to press a button
     ButtonPress = 0x00,
+    /// Request the currently loaded system name
     GetSystemName = 0x01,
+    /// Request the currently loaded system member count
     GetMemberCount = 0x02,
-    GetMemberName,
-    GetMemberPronouns,
-    GetState,
-    SetState,
-    UpdateDisplay,
-    GetVersion,
-    Reboot,
-    SystemUpload,
-    SystemDNLoad,
+    /// Request the name of a member of the currently loaded system
+    GetMemberName = 0x03,
+    /// Request the pronouns of a member of the currently loaded system
+    GetMemberPronouns = 0x04,
+    GetState = 0x05,
+    SetState = 0x06,
+    /// Request the SysBadge to update its display
+    UpdateDisplay = 0x07,
+    /// Request the SysBadge to return its version
+    GetVersion = 0x08,
+    /// Request the SysBadge to reboot
+    Reboot = 0x09,
+    /// Request the SysBadge to enter update mode
+    SystemUpload = 0x0A,
+    /// Upload a system chunk to the SysBadge
+    SystemDNLoad = 0x0B,
 }
 
-impl TryFrom<u8> for Request {
-    type Error = ();
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            x if x == (Request::ButtonPress as u8) => Ok(Request::ButtonPress),
-            x if x == (Request::GetSystemName as u8) => Ok(Request::GetSystemName),
-            x if x == (Request::GetMemberCount as u8) => Ok(Request::GetMemberCount),
-            x if x == (Request::GetMemberName as u8) => Ok(Request::GetMemberName),
-            x if x == (Request::GetMemberPronouns as u8) => Ok(Request::GetMemberPronouns),
-            x if x == (Request::GetState as u8) => Ok(Request::GetState),
-            x if x == (Request::SetState as u8) => Ok(Request::SetState),
-            x if x == (Request::UpdateDisplay as u8) => Ok(Request::UpdateDisplay),
-            x if x == (Request::GetVersion as u8) => Ok(Request::GetVersion),
-            x if x == (Request::Reboot as u8) => Ok(Request::Reboot),
-            x if x == (Request::SystemUpload as u8) => Ok(Request::SystemUpload),
-            x if x == (Request::SystemDNLoad as u8) => Ok(Request::SystemDNLoad),
-            _ => Err(()),
-        }
-    }
-}
-
+/// Version types
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, IntEnum, Default)]
 pub enum VersionType {
-    Jedec = 0x00,
-    UniqueId,
-    SerialNumber,
+    /// Request the SemVer version of the SysBadge.
+    #[default]
     SemVer = 0x10,
-    Matrix,
-    Web,
 }
 
-impl TryFrom<u8> for VersionType {
-    type Error = ();
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            x if x == (VersionType::UniqueId as u8) => Ok(VersionType::UniqueId),
-            x if x == (VersionType::Jedec as u8) => Ok(VersionType::Jedec),
-            x if x == (VersionType::SerialNumber as u8) => Ok(VersionType::SerialNumber),
-            x if x == (VersionType::SemVer as u8) => Ok(VersionType::SemVer),
-            x if x == (VersionType::Matrix as u8) => Ok(VersionType::Matrix),
-            x if x == (VersionType::Web as u8) => Ok(VersionType::Web),
-            _ => Err(()),
-        }
-    }
+/// Reboot selection
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, IntEnum, Default)]
+pub enum BootSel {
+    /// Boot the SysBadge into the application
+    #[default]
+    Application = 0x00,
+    /// Boot the SysBadge into the bootloader
+    Bootloader = 0x01,
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BootSel {
-    Application = 0x00,
-    Bootloader,
-    MassStorage,
-    PicoBoot,
-}
-
-impl BootSel {
-    pub fn disable_interface_mask(&self) -> Option<u32> {
-        match self {
-            BootSel::Application => None,
-            BootSel::Bootloader => Some(0x00000000),
-            BootSel::MassStorage => Some(0x00000002), // Disable PicoBoot
-            BootSel::PicoBoot => Some(0x00000001),    // Disable MassStorage
-        }
-    }
-}
-
-impl TryFrom<u8> for BootSel {
-    type Error = ();
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            x if x == (BootSel::Application as u8) => Ok(BootSel::Application),
-            x if x == (BootSel::Bootloader as u8) => Ok(BootSel::Bootloader),
-            x if x == (BootSel::MassStorage as u8) => Ok(BootSel::MassStorage),
-            x if x == (BootSel::PicoBoot as u8) => Ok(BootSel::PicoBoot),
-            _ => Err(()),
-        }
-    }
+#[derive(Clone, Copy, Debug, Eq, PartialEq, IntEnum, Default)]
+pub enum SystemUpdateStatus {
+    /// The SysBadge is not in update mode.
+    #[default]
+    NotInUpdateMode = 0x00,
+    /// Currently erasing
+    Erasing = 0x01,
+    /// Erased and ready for update
+    ErasedForUpdate = 0x02,
+    /// Ready for update
+    ReadyForUpdate = 0x03,
+    /// Wirint a chung
+    Writing = 0x04,
+    /// Chunk written
+    Written = 0x05,
+    /// Error while erasing
+    EraseError = 0x06,
+    /// Error while writing
+    WriteError = 0x07,
 }

@@ -2,13 +2,13 @@ mod defmt_stderr;
 
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::prelude::*;
-
+use embedded_graphics_simulator::sdl2::Keycode;
 use embedded_graphics_simulator::{
-    sdl2::Keycode, BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent,
-    Window,
+    BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
+use sysbadge::badge::Sysbadge;
 use sysbadge::system::SystemVec;
-use sysbadge::{badge::Sysbadge, Button};
+use sysbadge::Button;
 
 fn main() -> Result<(), core::convert::Infallible> {
     let mut display =
@@ -53,30 +53,30 @@ fn run_loop(mut window: Window, mut sysbadge: Sysbadge<SimulatorDisplay<BinaryCo
                     Keycode::Y => {
                         println!("register user press");
                         sysbadge.press(Button::USER)
-                    }
+                    },
                     Keycode::X => {
                         println!("register a press");
                         sysbadge.press(Button::A)
-                    }
+                    },
                     Keycode::C => {
                         println!("register b press");
                         sysbadge.press(Button::B)
-                    }
+                    },
                     Keycode::V => {
                         println!("register c press");
                         sysbadge.press(Button::C)
-                    }
+                    },
                     Keycode::Up | Keycode::B => {
                         println!("register up press");
                         sysbadge.press(Button::Up)
-                    }
+                    },
                     Keycode::Down | Keycode::N => {
                         println!("register down press");
                         sysbadge.press(Button::Down)
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 },
-                _ => {}
+                _ => {},
             }
         }
     }
@@ -98,7 +98,7 @@ fn run_buttons(
         for event in window.events() {
             match event {
                 SimulatorEvent::Quit => break 'running,
-                _ => {}
+                _ => {},
             }
         }
     }
