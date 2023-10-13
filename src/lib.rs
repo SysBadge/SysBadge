@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(ptr_metadata)]
 #![feature(return_position_impl_trait_in_trait, error_in_core)]
+#![feature(result_flattening)]
 #![cfg_attr(feature = "downloaders", feature(async_fn_in_trait))]
 #![deny(unsafe_op_in_unsafe_fn)]
 

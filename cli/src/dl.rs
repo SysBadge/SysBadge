@@ -4,6 +4,7 @@ use std::io::Write;
 use anyhow::Result;
 use clap::ValueEnum;
 use clio::Output;
+use sysbadge::system::SystemVec;
 
 pub fn command() -> clap::Command {
     let cmd = clap::Command::new("dl")
@@ -66,17 +67,11 @@ impl Display for DlFormat {
 }
 
 pub async fn run(matches: &clap::ArgMatches) -> Result<()> {
-    let mut downloader = sysbadge::system::downloaders::GenericDownloader::new();
-    downloader.useragent = matches.get_one::<String>("dl-user-agent").unwrap().clone();
-    let source = matches
-        .get_one::<sysbadge::system::downloaders::Source>("dl-source")
-        .unwrap();
     let id = matches.get_one::<String>("id").unwrap();
     let output = matches.get_one::<Output>("output");
     let format = *matches.get_one::<DlFormat>("format").unwrap();
 
-    let mut system = downloader.get(*source, id).await.unwrap();
-    system.sort_members();
+    let system = download(matches, id).await?;
 
     let mut output = match output {
         Some(o) => o.clone(),
@@ -91,4 +86,17 @@ pub async fn run(matches: &clap::ArgMatches) -> Result<()> {
     output.write_all(&data).unwrap();
 
     Ok(())
+}
+
+pub async fn download(matches: &clap::ArgMatches, id: &String) -> Result<SystemVec> {
+    let mut downloader = sysbadge::system::downloaders::GenericDownloader::new();
+    downloader.useragent = matches.get_one::<String>("dl-user-agent").unwrap().clone();
+    let source = matches
+        .get_one::<sysbadge::system::downloaders::Source>("dl-source")
+        .unwrap();
+
+    let mut system = downloader.get(*source, id).await.unwrap();
+    system.sort_members();
+
+    Ok(system)
 }

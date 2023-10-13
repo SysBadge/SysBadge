@@ -90,6 +90,33 @@ pub enum SystemIdType {
 }
 
 #[cfg(feature = "alloc")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ToSourceIdError;
+
+#[cfg(feature = "alloc")]
+impl core::fmt::Display for ToSourceIdError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        "invalid source".fmt(f)
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl core::error::Error for ToSourceIdError {}
+
+#[cfg(feature = "alloc")]
+impl TryFrom<SystemIdType> for crate::system::downloaders::Source {
+    type Error = ToSourceIdError;
+
+    fn try_from(value: SystemIdType) -> Result<Self, Self::Error> {
+        Ok(match value {
+            SystemIdType::None => return Err(ToSourceIdError),
+            SystemIdType::PluralKit => Self::PluralKit,
+            SystemIdType::PronounsCC => Self::Pronouns,
+        })
+    }
+}
+
+#[cfg(feature = "alloc")]
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum SystemId {
@@ -106,6 +133,14 @@ impl SystemId {
             SystemIdType::None => SystemId::None,
             SystemIdType::PluralKit => SystemId::PluralKit(str),
             SystemIdType::PronounsCC => SystemId::PronounsCC(str),
+        }
+    }
+
+    pub fn id(&self) -> Option<&String> {
+        match self {
+            SystemId::None => None,
+            SystemId::PluralKit(s) => Some(s),
+            SystemId::PronounsCC(s) => Some(s),
         }
     }
 }

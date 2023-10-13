@@ -136,7 +136,15 @@ impl<T: UsbContext> UsbSysBadge<T> {
             self.inner.system_write_chunk(offset, &data)?;
             let status = self.system_update_wait_status_blocking()?;
             debug!("system update status: {:?}", status);
+            offset += data.len() as u16;
         }
+
+        /// write empty chunk as padding
+        self.inner.system_write_chunk(offset, &[0; 64])?;
+        let status = self.system_update_wait_status_blocking()?;
+        debug!("system update status: {:?}", status);
+        offset += 64;
+
         self.inner.system_write_chunk(0, &[])?;
         let status = self.system_update_wait_status_blocking()?;
         debug!("system update status: {:?}", status);

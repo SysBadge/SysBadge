@@ -111,11 +111,21 @@ impl SystemReader<capnp::serialize::NoAllocSliceSegments<'static>> {
 
 impl<S: ReaderSegments> System for SystemReader<S> {
     fn name(&self) -> &str {
-        self.reader().unwrap().get_name().unwrap().to_str().unwrap()
+        self.reader()
+            .map(|r| r.get_name())
+            .flatten()
+            .map(|n| n.to_str().ok())
+            .ok()
+            .flatten()
+            .unwrap_or_default()
     }
 
     fn member_count(&self) -> usize {
-        self.reader().unwrap().get_members().unwrap().len() as usize
+        self.reader()
+            .map(|r| r.get_members())
+            .flatten()
+            .map(|r| r.len() as usize)
+            .unwrap_or_default()
     }
 
     fn member<'b>(&'b self, index: usize) -> MemberReader<'b> {

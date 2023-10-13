@@ -11,7 +11,7 @@ use tracing_subscriber::{fmt, reload, EnvFilter, Registry};
 
 #[tokio::main]
 async fn main() {
-    let fmt = fmt::layer().with_target(false);
+    let fmt = fmt::layer();
 
     let filter = tracing_subscriber::EnvFilter::from_default_env();
     let (filter, reload_handle) = reload::Layer::new(filter);
