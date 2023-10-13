@@ -6,6 +6,9 @@ use nrf_softdevice::ble::security::SecurityHandler;
 use nrf_softdevice::ble::{Connection, EncryptionInfo, IdentityKey, MasterId, SecurityMode, Uuid};
 use nrf_softdevice::Softdevice;
 
+mod device_info;
+
+/*
 const BATTERY_SERVICE: Uuid = Uuid::new_16(0x180f);
 const BATTERY_LEVEL: Uuid = Uuid::new_16(0x2a19);
 
@@ -163,17 +166,29 @@ impl BatteryService {
             info!("battery notifications: {}", (data[0] & 0x01) != 0);
         }
     }
-}
+}*/
 
 pub struct Server {
-    bas: BatteryService,
+    //bas: BatteryService,
+    _dis: device_info::DeviceInformationService,
 }
 
 impl Server {
     pub fn new(sd: &mut Softdevice) -> Result<Self, RegisterError> {
-        let bas = BatteryService::new(sd)?;
+        //let bas = BatteryService::new(sd)?;
 
-        Ok(Self { bas })
+        let _dis = device_info::DeviceInformationService::new(
+            sd,
+            device_info::DeviceInformation {
+                manufacturer_name: "SysBadge",
+                model_number: "Badge",
+                serial_number: "123456",
+                hw_rev: "0.0.1",
+                fw_rev: env!("CARGO_PKG_VERSION"),
+            },
+        )?;
+
+        Ok(Self { _dis })
     }
 }
 
@@ -188,9 +203,9 @@ impl gatt_server::Server for Server {
         offset: usize,
         data: &[u8],
     ) -> Option<Self::Event> {
-        if handle == self.bas.cccd_handle {
+        /*if handle == self.bas.cccd_handle {
             self.bas.on_write(handle, data);
-        }
+        }*/
 
         None
     }

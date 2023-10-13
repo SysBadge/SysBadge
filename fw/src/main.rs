@@ -15,6 +15,7 @@ use embassy_nrf::gpio::{Level, Output};
 use embassy_nrf::usb::vbus_detect::SoftwareVbusDetect;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
+use nrf_softdevice::ble::gatt_server;
 use nrf_softdevice::{raw, Flash, Softdevice};
 use static_cell::make_static;
 use sysbadge::badge::Sysbadge;
@@ -54,7 +55,8 @@ fn init(spawner: Spawner) {
     unsafe {
         FLASH.write(Mutex::new(flash));
     }
-    //let usbd_reg = unsafe { nrf_softdevice::raw::sd_power_usbregstatus_get()}
+
+    // let usbd_reg = unsafe { nrf_softdevice::raw::sd_power_usbregstatus_get() };
     let vbus_detect = make_static!(SoftwareVbusDetect::new(true, true)); // FIXME: initial values
 
     init_badge();
@@ -62,7 +64,7 @@ fn init(spawner: Spawner) {
     let server = unwrap!(ble::Server::new(sd));
 
     unwrap!(spawner.spawn(softdevice_task(sd, vbus_detect)));
-    //unwrap!(spawner.spawn(main_ble(server, sd)));
+    unwrap!(spawner.spawn(main_ble(server, sd)));
     unwrap!(spawner.spawn(usb::init(vbus_detect)));
 
     for num in 0..48 {
@@ -91,8 +93,35 @@ async fn main_ble(server: Server, sd: &'static Softdevice) {
         0x03, 0x03, 0x09, 0x18,
     ];
 
-    static BONDER: static_cell::StaticCell<ble::Bonder> = static_cell::StaticCell::new();
-    let bonder = BONDER.init(ble::Bonder::default());
+    loop {
+        let config = nrf_softdevice::ble::peripheral::Config::default();
+        let adv = nrf_softdevice::ble::peripheral::ConnectableAdvertisement::ScannableUndirected {
+            adv_data,
+            scan_data,
+        };
+        let conn =
+            unwrap!(nrf_softdevice::ble::peripheral::advertise_connectable(sd, adv, &config).await);
+
+        info!("advertising done!");
+
+        // Run the GATT server on the connection. This returns when the connection gets disconnected.
+        let e = gatt_server::run(&conn, &server, |_| {}).await;
+
+        info!("gatt_server run exited with error: {:?}", e);
+    }
+    /*#[rustfmt::skip]
+    let adv_data = &[
+        0x02, 0x01, raw::BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE as u8,
+        0x03, 0x03, 0x09, 0x18,
+        0x0a, 0x09, b'H', b'e', b'l', b'l', b'o', b'R', b'u', b's', b't',
+    ];
+    #[rustfmt::skip]
+    let scan_data = &[
+        0x03, 0x03, 0x09, 0x18,
+    ];
+
+    //static BONDER: static_cell::StaticCell<ble::Bonder> = static_cell::StaticCell::new();
+    //let bonder = BONDER.init(ble::Bonder::default());
 
     loop {
         let config = nrf_softdevice::ble::peripheral::Config::default();
@@ -109,7 +138,7 @@ async fn main_ble(server: Server, sd: &'static Softdevice) {
         let e = nrf_softdevice::ble::gatt_server::run(&conn, &server, |_| {}).await;
 
         info!("gatt server done: {:?}", e);
-    }
+    }*/
 }
 
 // Softdevice
