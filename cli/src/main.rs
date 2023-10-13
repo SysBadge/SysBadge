@@ -1,8 +1,9 @@
 mod dl;
+mod get;
 mod system;
 
 use anyhow::{bail, Context, Result};
-use clap::{command, Arg, ArgAction, Command, Parser, ValueEnum};
+use sysbadge_usb::UsbSysBadge;
 use tracing::*;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::reload::Handle;
@@ -37,7 +38,8 @@ async fn run_main(reload_handle: Handle<tracing_subscriber::EnvFilter, Registry>
         )
         .subcommand_required(true)
         .subcommand(dl::command())
-        .subcommand(system::command());
+        .subcommand(system::command())
+        .subcommand(get::command());
 
     let matches = app.get_matches();
 
@@ -58,7 +60,21 @@ async fn run_main(reload_handle: Handle<tracing_subscriber::EnvFilter, Registry>
     match matches.subcommand().unwrap() {
         ("dl", matches) => dl::run(matches).await,
         ("system", matches) => system::run(matches).await,
+        ("get", matches) => get::run(matches).await,
 
         _ => bail!("Unknown subcommand"),
     }
+}
+
+pub async fn find_badge(
+    _matches: &clap::ArgMatches,
+) -> Result<UsbSysBadge<sysbadge_usb::rusb::GlobalContext>> {
+    // FIXME
+    /*let badges = UsbSysbadge::find_devices(GlobalContext::default())?;
+    if badges.len() == 0 {
+        bail!("No badge found")
+    }
+    // FIXME: proper select methode
+    Ok(badges[0].clone())*/
+    UsbSysBadge::find_badge(sysbadge_usb::rusb::GlobalContext::default()).context("No badge found")
 }

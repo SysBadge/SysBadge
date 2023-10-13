@@ -51,7 +51,7 @@ pub fn dl_common_args(command: clap::Command) -> clap::Command {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum DlFormat {
+pub enum DlFormat {
     Bin,
     Json,
 }

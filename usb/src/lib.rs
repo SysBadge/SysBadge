@@ -11,7 +11,7 @@ pub mod err;
 pub use err::{Error, Result};
 use sysbadge::badge::CurrentMenu;
 use sysbadge::system::Member;
-use sysbadge::usb::{BootSel, SystemUpdateStatus, VersionType};
+use sysbadge::usb::{BootSel, SystemId, SystemIdType, SystemUpdateStatus, VersionType};
 use sysbadge::System;
 use tracing::*;
 
@@ -49,6 +49,13 @@ impl<T: UsbContext> UsbSysBadge<T> {
     #[inline(always)]
     pub fn system_name(&self) -> Result<String> {
         self.inner.system_name()
+    }
+
+    /// Get the ID of the provider of the current system on the SysBadge.
+    #[inline]
+    pub fn system_id(&self) -> Result<SystemId> {
+        let (id, str) = self.inner.system_id()?;
+        Ok(SystemId::new(id, str))
     }
 
     /// Get the member count of the currently loaded system on the SysBadge.

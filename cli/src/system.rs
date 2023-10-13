@@ -1,9 +1,7 @@
-use std::fs::{read, File};
+use std::fs::File;
 use std::io::Read;
 
-use anyhow::{bail, Context, Result};
-use sysbadge_usb::rusb::GlobalContext;
-use sysbadge_usb::UsbSysBadge;
+use anyhow::{Context, Result};
 use tracing::debug;
 
 pub fn command() -> clap::Command {
@@ -39,7 +37,7 @@ pub fn command() -> clap::Command {
 }
 
 pub async fn run(matches: &clap::ArgMatches) -> Result<()> {
-    let mut badge = find_badge(matches).await?;
+    let mut badge = crate::find_badge(matches).await?;
     badge.set_timeout(std::time::Duration::from_secs(5));
 
     /*badge
@@ -67,7 +65,7 @@ pub async fn run(matches: &clap::ArgMatches) -> Result<()> {
     Ok(())
 }
 
-async fn run_file(matches: &clap::ArgMatches, file: &String) -> Result<Vec<u8>> {
+async fn run_file(_matches: &clap::ArgMatches, file: &String) -> Result<Vec<u8>> {
     let mut file = File::options().read(true).open(file)?;
 
     let mut vec = Vec::new();
@@ -80,15 +78,4 @@ async fn run_file(matches: &clap::ArgMatches, file: &String) -> Result<Vec<u8>> 
 async fn run_dl(matches: &clap::ArgMatches, id: &String) -> Result<Vec<u8>> {
     todo!()
     //Ok(())
-}
-
-async fn find_badge(matches: &clap::ArgMatches) -> Result<UsbSysBadge<GlobalContext>> {
-    // FIXME
-    /*let badges = UsbSysbadge::find_devices(GlobalContext::default())?;
-    if badges.len() == 0 {
-        bail!("No badge found")
-    }
-    // FIXME: proper select methode
-    Ok(badges[0].clone())*/
-    UsbSysBadge::find_badge(GlobalContext::default()).context("No badge found")
 }

@@ -1,9 +1,10 @@
+use std::alloc::System;
 use std::time::Duration;
 
 use rusb::{Device, DeviceDescriptor, DeviceHandle, UsbContext};
 use sysbadge::badge::CurrentMenu;
 pub use sysbadge::usb as types;
-use sysbadge::usb::SystemUpdateStatus;
+use sysbadge::usb::{SystemIdType, SystemUpdateStatus};
 use tracing::*;
 use types::{BootSel, Request, VersionType};
 
@@ -129,6 +130,18 @@ impl<T: UsbContext> UsbSysBadgeRaw<T> {
         let n = self.read_control(sysbadge::usb::Request::GetSystemName, 0, &mut buf, None)?;
 
         Ok(String::from_utf8((&buf[..n]).to_vec())?)
+    }
+
+    /// Read the system ID information
+    pub fn system_id(&self) -> Result<(SystemIdType, String)> {
+        let mut buf = [0; 64];
+        let n = self.read_control(sysbadge::usb::Request::GetSystemName, 1, &mut buf, None)?;
+        assert!(n > 1, "GetSystemId returned {} bytes", n);
+
+        let id = SystemIdType::try_from(buf[0]).map_err(|err| Error::IntEnumError(err.value()))?;
+        let str = String::from_utf8((&buf[1..n]).to_vec())?;
+
+        Ok((id, str))
     }
 
     /// Get the member count of the currently loaded system on the SysBadge.

@@ -11,7 +11,7 @@ use embassy_usb::driver::Driver;
 use embassy_usb::types::InterfaceNumber;
 use embassy_usb::{Builder, Handler};
 use static_cell::make_static;
-use sysbadge::badge::CurrentMenu;
+use sysbadge::badge::{self, CurrentMenu};
 use sysbadge::system::Member;
 use sysbadge::System;
 
@@ -120,10 +120,41 @@ impl Handler for Control {
                         buf[..out.len()].copy_from_slice(out);
                         Some(InResponse::Accepted(&buf[..out.len()]))
                     }),
-                    1 /* PK HID */ => block_on(async {
-                        let badge = unsafe { crate::BADGE.assume_init_ref() }.lock().await;
-                        defmt::todo!()
-                    }),
+                    1 /* ID */ => {
+                        let badge = unsafe { crate::BADGE.assume_init_ref() }.try_lock();
+                        if badge.is_err() {
+                            return Some(InResponse::Rejected);
+                        }
+                        let badge = unsafe { badge.unwrap_unchecked() };
+                        if let Some(system) = badge.system.as_ref() {
+                            let id = system.reader().unwrap().which().unwrap();
+                            match id {
+                                sysbadge::system::system_capnp::system::Which::None(_) => {
+                                    Some(InResponse::Accepted(&[SystemIdType::None as u8]))
+                                },
+                                sysbadge::system::system_capnp::system::Which::PkHid(id) => {
+                                    let id = id.unwrap().as_bytes();
+                                    if buf.len() < 1 + id.len() {
+                                        return Some(InResponse::Rejected);
+                                    }
+                                    buf[0] = SystemIdType::PluralKit as u8;
+                                    buf[1..1+id.len()].copy_from_slice(id);
+                                    Some(InResponse::Accepted(&buf[..1+id.len()]))
+                                },
+                                sysbadge::system::system_capnp::system::Which::Pronouns(id) => {
+                                    let id = id.unwrap().as_bytes();
+                                    if buf.len() < 1 + id.len() {
+                                        return Some(InResponse::Rejected);
+                                    }
+                                    buf[0] = SystemIdType::PronounsCC as u8;
+                                    buf[1..1+id.len()].copy_from_slice(id);
+                                    Some(InResponse::Accepted(&buf[..1+id.len()]))
+                                },
+                            }
+                        } else {
+                            Some(InResponse::Rejected)
+                        }
+                    },
                     _ => Some(InResponse::Rejected)
                 }
             },
@@ -326,7 +357,7 @@ static IN_FLIGHT: AtomicBool = AtomicBool::new(false);
 static IN_CHANNEL: Channel<CriticalSectionRawMutex, InMsg, 1> = Channel::new();
 static OUT: Signal<CriticalSectionRawMutex, SystemUpdateStatus> = Signal::new();
 use embedded_storage_async::nor_flash::NorFlash;
-use sysbadge::usb::SystemUpdateStatus;
+use sysbadge::usb::{SystemIdType, SystemUpdateStatus};
 
 fn try_schedule(msg: InMsg) -> bool {
     debug!("Trying to schedule new operation");

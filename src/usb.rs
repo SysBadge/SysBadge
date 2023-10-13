@@ -76,3 +76,65 @@ pub enum SystemUpdateStatus {
     /// Error while writing
     WriteError = 0x07,
 }
+
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, IntEnum, Default)]
+pub enum SystemIdType {
+    /// The file was not generated via a know provider
+    #[default]
+    None = 0x00,
+    /// The file was generated with data from PluralKit
+    PluralKit = 0x01,
+    /// The file was generated with data from PronounsCC
+    PronounsCC = 0x02,
+}
+
+#[cfg(feature = "alloc")]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum SystemId {
+    None,
+    PluralKit(alloc::string::String),
+    PronounsCC(alloc::string::String),
+}
+
+#[cfg(feature = "alloc")]
+impl SystemId {
+    #[inline]
+    pub fn new(id: SystemIdType, str: alloc::string::String) -> Self {
+        match id {
+            SystemIdType::None => SystemId::None,
+            SystemIdType::PluralKit => SystemId::PluralKit(str),
+            SystemIdType::PronounsCC => SystemId::PronounsCC(str),
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl AsRef<SystemIdType> for SystemId {
+    fn as_ref(&self) -> &SystemIdType {
+        match self {
+            SystemId::None => &SystemIdType::None,
+            SystemId::PluralKit(_) => &SystemIdType::PluralKit,
+            SystemId::PronounsCC(_) => &SystemIdType::PronounsCC,
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl From<SystemId> for SystemIdType {
+    fn from(id: SystemId) -> Self {
+        *id.as_ref()
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl core::fmt::Display for SystemId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            SystemId::None => write!(f, "None"),
+            SystemId::PluralKit(s) => write!(f, "PluralKit: {}", s),
+            SystemId::PronounsCC(s) => write!(f, "PronounsCC: {}", s),
+        }
+    }
+}

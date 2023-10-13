@@ -50,7 +50,7 @@ impl super::Downloader for PronounsDownloader {
         let mut system = super::SystemVec::new(transform_name(
             &user.display_name.unwrap_or_else(|| user.name),
         ));
-        system.source_id = Some(crate::system::alloc::SourceId::Pronouns(user.sid.clone()));
+        system.source_id = SystemId::PronounsCC(user.sid.clone());
 
         for member in user.members {
             let mut pronouns = member.pronouns.clone();
@@ -92,6 +92,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::system::downloaders::transform_name;
 use crate::system::MemberStrings;
+use crate::usb::SystemId;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct User {

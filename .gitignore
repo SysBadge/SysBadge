@@ -22,3 +22,4 @@ dist
 # Uf2 files
 *.uf2
 *.bin
+*.json
