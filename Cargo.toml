@@ -117,24 +117,25 @@ opt-level = 3
 embedded-graphics-web-simulator = { git = "https://github.com/georgik/embedded-graphics-web-simulator.git", rev = "6faa2cc69fcbb2b9b17ae1f765107a499dd4f8b8" }
 
 # Embassy
-# embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", rev = "e2f8bf19ea55341f274c6cb9c3650a96f4a09fe4" }
-# embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", rev = "e2f8bf19ea55341f274c6cb9c3650a96f4a09fe4" }
-#
-# embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "e2f8bf19ea55341f274c6cb9c3650a96f4a09fe4" }
-# embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", rev = "e2f8bf19ea55341f274c6cb9c3650a96f4a09fe4" }
-# embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "e2f8bf19ea55341f274c6cb9c3650a96f4a09fe4" }
-# embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "e2f8bf19ea55341f274c6cb9c3650a96f4a09fe4" }
-# embassy-macros = { git = "https://github.com/embassy-rs/embassy.git", rev = "e2f8bf19ea55341f274c6cb9c3650a96f4a09fe4" }
-#
-# embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", rev = "e2f8bf19ea55341f274c6cb9c3650a96f4a09fe4" }
-embassy-nrf = { path = "../embassy/embassy-nrf" }
-embassy-executor = { path = "../embassy/embassy-executor" }
-embassy-futures = { path = "../embassy/embassy-futures" }
-embassy-sync = { path = "../embassy/embassy-sync" }
-embassy-time = { path = "../embassy/embassy-time" }
-embassy-macros = { path = "../embassy/embassy-macros" }
+embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
+embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
 
-embassy-usb = { path = "../embassy/embassy-usb" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
+embassy-macros = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
+
+embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
+
+# embassy-nrf = { path = "../embassy/embassy-nrf" }
+# embassy-executor = { path = "../embassy/embassy-executor" }
+# embassy-futures = { path = "../embassy/embassy-futures" }
+# embassy-sync = { path = "../embassy/embassy-sync" }
+# embassy-time = { path = "../embassy/embassy-time" }
+# embassy-macros = { path = "../embassy/embassy-macros" }
+# 
+# embassy-usb = { path = "../embassy/embassy-usb" }
 
 nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice" }
 nrf-softdevice-s113 = { git = "https://github.com/embassy-rs/nrf-softdevice" }
