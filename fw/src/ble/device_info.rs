@@ -30,6 +30,7 @@ impl DeviceInformationService {
 
         // TODO: PnP_ID?
         Self::add_str_characteristic(&mut sb, MODEL_NUMBER_STRING, info.model_number)?;
+
         Self::add_str_characteristic(&mut sb, SERIAL_NUMBER_STRING, info.serial_number)?;
         Self::add_str_characteristic(&mut sb, FIRMWARE_REVISION_STRING, info.fw_rev)?;
         Self::add_str_characteristic(&mut sb, HARDWARE_REVISION_STRING, info.hw_rev)?;
@@ -44,9 +45,9 @@ impl DeviceInformationService {
         sb: &mut ServiceBuilder,
         uuid: Uuid,
         val: &'static str,
-    ) -> Result<Option<CharacteristicHandles>, RegisterError> {
+    ) -> Result<CharacteristicHandles, RegisterError> {
         let attr = Attribute::new(val);
         let md = Metadata::new(Properties::new().read());
-        Ok(Some(sb.add_characteristic(uuid, attr, md)?.build()))
+        Ok(sb.add_characteristic(uuid, attr, md)?.build())
     }
 }

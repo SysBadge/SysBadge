@@ -9,7 +9,7 @@
 extern crate alloc;
 extern crate core;
 
-pub use system::System;
+pub use system::{Member, System};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 

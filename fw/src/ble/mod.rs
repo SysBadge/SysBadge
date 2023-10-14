@@ -7,6 +7,7 @@ use nrf_softdevice::ble::{Connection, EncryptionInfo, IdentityKey, MasterId, Sec
 use nrf_softdevice::Softdevice;
 
 mod device_info;
+mod sysbadge;
 
 /*
 const BATTERY_SERVICE: Uuid = Uuid::new_16(0x180f);
@@ -171,6 +172,7 @@ impl BatteryService {
 pub struct Server {
     //bas: BatteryService,
     _dis: device_info::DeviceInformationService,
+    sysbadge: sysbadge::SysBadgeGatt,
 }
 
 impl Server {
@@ -188,7 +190,9 @@ impl Server {
             },
         )?;
 
-        Ok(Self { _dis })
+        let sysbadge = sysbadge::SysBadgeGatt::new(sd)?;
+
+        Ok(Self { _dis, sysbadge })
     }
 }
 
@@ -203,9 +207,26 @@ impl gatt_server::Server for Server {
         offset: usize,
         data: &[u8],
     ) -> Option<Self::Event> {
-        /*if handle == self.bas.cccd_handle {
-            self.bas.on_write(handle, data);
-        }*/
+        if self.sysbadge.has_value(handle) {
+            unwrap!(self.sysbadge.on_write(conn, handle, op, offset, data));
+            return None;
+        }
+
+        None
+    }
+
+    fn on_deferred_read(
+        &self,
+        handle: u16,
+        offset: usize,
+        reply: nrf_softdevice::ble::DeferredReadReply,
+    ) -> Option<Self::Event> {
+        info!("on_deferred_read: handle: {}, offset: {}", handle, offset);
+
+        if self.sysbadge.has_value(handle) {
+            unwrap!(self.sysbadge.on_deferred_read(handle, offset, reply));
+            return None;
+        }
 
         None
     }
