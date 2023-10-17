@@ -90,7 +90,7 @@ async fn main_ble(server: Server, sd: &'static Softdevice) {
     ];
     #[rustfmt::skip]
     let scan_data = &[
-        0x03, 0x03, 0x09, 0x18,
+        0x03, 0x03, 0x0A, 0x18,
     ];
 
     loop {
