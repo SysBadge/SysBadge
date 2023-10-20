@@ -11,6 +11,7 @@ const MODEL_NUMBER_STRING: Uuid = Uuid::new_16(0x2A24);
 const SERIAL_NUMBER_STRING: Uuid = Uuid::new_16(0x2A25);
 const FIRMWARE_REVISION_STRING: Uuid = Uuid::new_16(0x2A26);
 const HARDWARE_REVISION_STRING: Uuid = Uuid::new_16(0x2A27);
+const SOFTWARE_REVISION_STRING: Uuid = Uuid::new_16(0x2A28);
 const MANUFACTURER_NAME_STRING: Uuid = Uuid::new_16(0x2A29);
 
 #[derive(Debug, Default, defmt::Format)]
@@ -19,6 +20,7 @@ pub struct DeviceInformation {
     pub serial_number: &'static str,
     pub fw_rev: &'static str,
     pub hw_rev: &'static str,
+    pub sw_rev: &'static str,
     pub manufacturer_name: &'static str,
 }
 
@@ -34,6 +36,7 @@ impl DeviceInformationService {
         Self::add_str_characteristic(&mut sb, SERIAL_NUMBER_STRING, info.serial_number)?;
         Self::add_str_characteristic(&mut sb, FIRMWARE_REVISION_STRING, info.fw_rev)?;
         Self::add_str_characteristic(&mut sb, HARDWARE_REVISION_STRING, info.hw_rev)?;
+        Self::add_str_characteristic(&mut sb, SOFTWARE_REVISION_STRING, info.sw_rev)?;
         Self::add_str_characteristic(&mut sb, MANUFACTURER_NAME_STRING, info.manufacturer_name)?;
 
         let _service_handle = sb.build();

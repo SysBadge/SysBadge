@@ -186,7 +186,8 @@ impl Server {
                 model_number: "Badge",
                 serial_number: "123456",
                 hw_rev: "0.0.1",
-                fw_rev: env!("CARGO_PKG_VERSION"),
+                fw_rev: "7.2.0", // FIXME: non static string
+                sw_rev: env!("CARGO_PKG_VERSION"),
             },
         )?;
 
