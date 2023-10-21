@@ -8,8 +8,8 @@
 
 0	string	SYBD		SysBadge system definition
 !:ext sysdf
->4  lelong  x   \b, version %u
->>8	lelong	&0x0001		\b, checksum
->>8	lelong	&0x0008		\b, json
+>20    string  x   \b: %s
+>>4  lelong  x   \b, version %u
 
->>>20    string  x   \b, system: %s
+>>>8	lelong	&0x0001		\b, checksum
+>>>8	lelong	&0x0008		\b, json
