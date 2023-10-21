@@ -53,6 +53,11 @@ impl SystemVec {
         capnp::serialize::write_message_to_words(&builder)
     }
 
+    #[cfg(feature = "file")]
+    pub fn get_file(&self) -> alloc::vec::Vec<u8> {
+        super::file::FileWriter::new(&self).to_vec()
+    }
+
     fn capnp_builder(&self) -> capnp::message::Builder<capnp::message::HeapAllocator> {
         let mut builder = capnp::message::Builder::new_default();
         {

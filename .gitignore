@@ -23,3 +23,4 @@ dist
 *.uf2
 *.bin
 *.json
+*.sysdf

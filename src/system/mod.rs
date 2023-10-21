@@ -1,6 +1,9 @@
 #[cfg(feature = "alloc")]
 mod alloc;
 
+#[cfg(feature = "file")]
+pub mod file;
+
 #[cfg(feature = "downloaders")]
 pub mod downloaders;
 

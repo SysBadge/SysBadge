@@ -154,6 +154,7 @@ async fn get_dl(
     };
     let data = match format {
         DlFormat::Bin => system.get_bin(),
+        DlFormat::Sysdf => system.get_file(),
         DlFormat::Json => serde_json::ser::to_vec_pretty(&system).unwrap(),
     };
 

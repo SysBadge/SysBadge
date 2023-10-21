@@ -79,9 +79,13 @@ async fn run_file(
     matches: &clap::ArgMatches,
     file: &String,
 ) -> Result<()> {
-    let file = File::options().read(true).open(file)?;
+    let mut file = File::options().read(true).open(file)?;
+    let file = sysbadge::system::file::File::read_or_bin(&mut file)?;
+    if !file.verify() {
+        bail!("Invalid checksum");
+    }
 
-    let iter = file.bytes().map(|b| b.unwrap());
+    let iter = file.payload.iter().map(|b| *b);
 
     badge
         .system_update_blocking(matches.get_flag("erase"), iter)
