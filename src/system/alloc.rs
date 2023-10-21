@@ -65,10 +65,10 @@ impl SystemVec {
             system.set_name(self.name.as_str().into());
             match &self.source_id {
                 SystemId::None => {},
-                SystemId::PluralKit(id) => {
+                SystemId::PluralKit { id } => {
                     system.set_pk_hid(id.as_str().into());
                 },
-                SystemId::PronounsCC(id) => {
+                SystemId::PronounsCC { id } => {
                     system.set_pronouns(id.as_str().into());
                 },
             }

@@ -50,7 +50,9 @@ impl super::Downloader for PronounsDownloader {
         let mut system = super::SystemVec::new(transform_name(
             &user.display_name.unwrap_or_else(|| user.name),
         ));
-        system.source_id = SystemId::PronounsCC(user.sid.clone());
+        system.source_id = SystemId::PronounsCC {
+            id: user.sid.clone(),
+        };
 
         for member in user.members {
             let mut pronouns = member.pronouns.clone();

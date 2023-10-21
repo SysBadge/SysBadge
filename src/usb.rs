@@ -121,8 +121,8 @@ impl TryFrom<SystemIdType> for crate::system::downloaders::Source {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum SystemId {
     None,
-    PluralKit(alloc::string::String),
-    PronounsCC(alloc::string::String),
+    PluralKit { id: alloc::string::String },
+    PronounsCC { id: alloc::string::String },
 }
 
 #[cfg(feature = "alloc")]
@@ -131,16 +131,16 @@ impl SystemId {
     pub fn new(id: SystemIdType, str: alloc::string::String) -> Self {
         match id {
             SystemIdType::None => SystemId::None,
-            SystemIdType::PluralKit => SystemId::PluralKit(str),
-            SystemIdType::PronounsCC => SystemId::PronounsCC(str),
+            SystemIdType::PluralKit => SystemId::PluralKit { id: str },
+            SystemIdType::PronounsCC => SystemId::PronounsCC { id: str },
         }
     }
 
     pub fn id(&self) -> Option<&String> {
         match self {
             SystemId::None => None,
-            SystemId::PluralKit(s) => Some(s),
-            SystemId::PronounsCC(s) => Some(s),
+            SystemId::PluralKit { id } => Some(id),
+            SystemId::PronounsCC { id } => Some(id),
         }
     }
 }
@@ -150,8 +150,8 @@ impl AsRef<SystemIdType> for SystemId {
     fn as_ref(&self) -> &SystemIdType {
         match self {
             SystemId::None => &SystemIdType::None,
-            SystemId::PluralKit(_) => &SystemIdType::PluralKit,
-            SystemId::PronounsCC(_) => &SystemIdType::PronounsCC,
+            SystemId::PluralKit { .. } => &SystemIdType::PluralKit,
+            SystemId::PronounsCC { .. } => &SystemIdType::PronounsCC,
         }
     }
 }
@@ -168,8 +168,8 @@ impl core::fmt::Display for SystemId {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             SystemId::None => write!(f, "None"),
-            SystemId::PluralKit(s) => write!(f, "PluralKit: {}", s),
-            SystemId::PronounsCC(s) => write!(f, "PronounsCC: {}", s),
+            SystemId::PluralKit { id } => write!(f, "PluralKit: {}", id),
+            SystemId::PronounsCC { id } => write!(f, "PronounsCC: {}", id),
         }
     }
 }
