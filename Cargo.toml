@@ -7,7 +7,7 @@ authors = [ "Finn Behrens <me@kloenk.dev>" ]
 
 [lib]
 name = "sysbadge"
-crate-type = [ "rlib", "cdylib", "staticlib" ]
+# crate-type = [ "lib", "cdylib", "staticlib" ]
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

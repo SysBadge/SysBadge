@@ -154,7 +154,7 @@
               cargoExtraArgs =
                 "-Z build-std=compiler_builtins,core,alloc,std --target ${
                   rustTarget stdenv.targetPlatform.system
-                } --package sysbadge-usb --bin tui";
+                } --package sysbadge-usb --bin tui --features tui";
             })) { };
           sysbadge_cli = final.callPackage ({ lib, stdenv, fenix, libiconv
             , libusb1, capnproto, openssl, pkg-config, darwin ? null }:
@@ -195,7 +195,7 @@
                 buildInputs = [ flip-link ]
                   ++ lib.optional stdenv.isDarwin libiconv;
                 cargoExtraArgs =
-                  "-Z build-std=compiler_builtins,core,alloc --target thumbv6m-none-eabi --package sysbadge-fw";
+                  "-Z build-std=compiler_builtins,core,alloc --target thumbv7em-none-eabihf --package sysbadge-fw";
 
                 postInstallPhases = ''
                   mkdir -p $out/share/sysbadge
@@ -214,6 +214,7 @@
               in craneLib.buildPackage ((commonArgs craneLib {
                 inherit lib stdenv toolchain;
                 fw = false;
+                target = "wasm32-unknown-unknown";
               }) // {
                 cargoArtifacts = cargoArtifacts craneLib toolchain;
                 pname = "sysbadge-wasm-unwraped";

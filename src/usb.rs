@@ -103,7 +103,7 @@ impl core::fmt::Display for ToSourceIdError {
 #[cfg(feature = "alloc")]
 impl core::error::Error for ToSourceIdError {}
 
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", feature = "downloaders"))]
 impl TryFrom<SystemIdType> for crate::system::downloaders::Source {
     type Error = ToSourceIdError;
 
@@ -136,7 +136,7 @@ impl SystemId {
         }
     }
 
-    pub fn id(&self) -> Option<&String> {
+    pub fn id(&self) -> Option<&alloc::string::String> {
         match self {
             SystemId::None => None,
             SystemId::PluralKit { id } => Some(id),
