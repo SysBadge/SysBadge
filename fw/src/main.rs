@@ -55,9 +55,9 @@ fn init(spawner: Spawner) {
     unsafe {
         FLASH.write(Mutex::new(flash));
     }
+    trace!("Softdevice and flash enabled");
 
-    // let usbd_reg = unsafe { nrf_softdevice::raw::sd_power_usbregstatus_get() };
-    let vbus_detect = make_static!(SoftwareVbusDetect::new(true, true)); // FIXME: initial values
+    let vbus_detect = init_vbus_detect();
 
     init_badge();
 
@@ -67,17 +67,7 @@ fn init(spawner: Spawner) {
     unwrap!(spawner.spawn(main_ble(server, sd)));
     unwrap!(spawner.spawn(usb::init(vbus_detect)));
 
-    for num in 0..48 {
-        let interrupt =
-            unsafe { core::mem::transmute::<u16, embassy_nrf::interrupt::Interrupt>(num) };
-        let is_enabled = embassy_nrf::interrupt::InterruptExt::is_enabled(interrupt);
-        let priority = embassy_nrf::interrupt::InterruptExt::get_priority(interrupt);
-
-        info!(
-            "Interrupt {}: Enabled = {}, Priority = {}",
-            num, is_enabled, priority
-        );
-    }
+    info!("init done");
 }
 
 #[embassy_executor::task]
@@ -176,13 +166,6 @@ fn enable_softdevice() -> &'static mut Softdevice {
 
     let sd = Softdevice::enable(&config);
 
-    // enable usb events
-    unsafe {
-        nrf_softdevice::raw::sd_power_usbdetected_enable(1);
-        nrf_softdevice::raw::sd_power_usbpwrrdy_enable(1);
-        nrf_softdevice::raw::sd_power_usbremoved_enable(1);
-    }
-
     sd
 }
 
@@ -259,4 +242,30 @@ fn init_badge() -> &'static Mutex<NoopRawMutex, SysBadge> {
     }
 
     unsafe { BADGE.write(Mutex::new(sysbadge)) }
+}
+
+/// Create a VBUS detect software instance.
+fn init_vbus_detect() -> &'static SoftwareVbusDetect {
+    let mut out = 0u32;
+    if unsafe { nrf_softdevice::raw::sd_power_usbregstatus_get(&mut out) }
+        != nrf_softdevice::raw::NRF_SUCCESS
+    {
+        warn!("Failed to get USBREGSTATUS");
+    }
+
+    #[cfg(debug_assertions)]
+    info!(
+        "USBREGSTATUS: detect: {}, ready: {}",
+        out & 0b01 != 0,
+        out & 0b10 != 0
+    );
+
+    // enable usb events
+    unsafe {
+        nrf_softdevice::raw::sd_power_usbdetected_enable(1);
+        nrf_softdevice::raw::sd_power_usbpwrrdy_enable(1);
+        nrf_softdevice::raw::sd_power_usbremoved_enable(1);
+    }
+
+    make_static!(SoftwareVbusDetect::new(out & 0b01 != 0, out & 0b10 != 0))
 }
