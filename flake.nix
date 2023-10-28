@@ -117,6 +117,30 @@
               doCheck = false;
             });
         in {
+          sysbadge = final.callPackage ({ lib, stdenv, fenix, capnproto
+            , libiconv, rust-bindgen, system ? stdenv.targetPlatform.system
+            , darwin ? null }:
+            let
+              toolchain = (fenixToolchain fenix);
+              craneLib = crane.lib.${system}.overrideToolchain toolchain;
+            in craneLib.buildPackage ((commonArgs craneLib {
+              inherit lib stdenv libiconv toolchain;
+              fw = false;
+            }) // {
+              cargoArtifacts = cargoArtifacts craneLib toolchain;
+              cargoBuildCommand =
+                "cargo rustc --profile release --crate-type=cdylib,staticlib";
+              pname = "sysbadge";
+              nativeBuildInputs = [ capnproto ];
+              buildInputs = lib.optionals stdenv.isDarwin [
+                libiconv
+                darwin.apple_sdk.frameworks.SystemConfiguration
+              ];
+              cargoExtraArgs =
+                "-Z build-std=compiler_builtins,core,alloc,std --target ${
+                  rustTarget system
+                } --package sysbadge --all-features";
+            })) { };
           sysbadge_simulator = final.callPackage
             ({ lib, stdenv, fenix, SDL2, capnproto, libiconv }:
               let

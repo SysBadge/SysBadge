@@ -68,4 +68,14 @@ jobs:
           name: sysbadge
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - run: nix build -L .#sysbadge_cli
+  build-lib:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v20
+      - uses: cachix/cachix-action@v12
+        with:
+          name: sysbadge
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - run: nix build -L .#sysbadge
 
