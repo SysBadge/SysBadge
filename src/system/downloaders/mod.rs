@@ -12,6 +12,8 @@ mod pronouns;
 #[cfg(feature = "downloader-pronouns")]
 use pronouns::PronounsDownloader;
 
+pub mod bindings;
+
 use super::SystemVec;
 
 pub trait Downloader {
@@ -20,6 +22,7 @@ pub trait Downloader {
 }
 
 #[non_exhaustive]
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Source {
     #[cfg(feature = "downloader-pk")]
@@ -115,8 +118,12 @@ pub struct GenericDownloader {
 
 impl GenericDownloader {
     pub fn new() -> Self {
+        Self::new_with_useragent("sysbadge downloader")
+    }
+
+    pub fn new_with_useragent(useragent: impl ToString) -> Self {
         Self {
-            useragent: "sysbadge downloader".to_string(),
+            useragent: useragent.to_string(),
         }
     }
 

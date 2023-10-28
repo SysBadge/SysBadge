@@ -65,6 +65,11 @@ renaming_overrides_prefixing = false
 "File" = "sb_file"
 "Flags" = "sb_file_flags"
 "FileHeader" = "sb_file_header"
+"SystemVec" = "sb_system"
+"CMember" = "sb_system_member"
+"Source" = "sb_source"
+"GenericDownloader" = "sb_generic_downloader"
+"FileWriter" = "sb_file_writer"
 
 
 [export.body]

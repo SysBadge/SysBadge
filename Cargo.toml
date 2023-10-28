@@ -27,6 +27,7 @@ clap = [ "dep:clap" ]
 serde = [ "dep:serde", "int-enum/serde" ]
 std = [ "alloc", "int-enum/std", "sha2?/std", "serde_json?/std", "dep:libc" ]
 tracing = [ "dep:tracing" ]
+tokio = [ "dep:tokio" ]
 
 [dependencies]
 defmt = { version = "0.3", features = [ ], optional = true }
@@ -48,6 +49,7 @@ profont = "0.7.0"
 pkrs = { version = "0.3", optional = true }
 reqwest = { version = "0.11", optional = true, default-features = false, features = [ "rustls-tls" ] }
 clap = { version = "4", optional = true }
+tokio = { version = "1.33", optional = true, features = [ "rt" ] }
 
 serde = { version = "1.0", features = [ "derive" ],  optional = true }
 serde_json = { version = "1", default-features = false, optional = true }

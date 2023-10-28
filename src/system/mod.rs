@@ -7,6 +7,9 @@ pub mod file;
 #[cfg(feature = "downloaders")]
 pub mod downloaders;
 
+#[cfg(feature = "alloc")]
+pub mod bindings;
+
 pub mod system_capnp {
     include!(concat!(env!("OUT_DIR"), "/system/system_capnp.rs"));
 }

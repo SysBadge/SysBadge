@@ -57,6 +57,7 @@ impl Default for FileHeader {
 }
 
 #[cfg(feature = "alloc")]
+#[repr(C)]
 pub struct FileWriter<'a> {
     pub system: &'a crate::system::SystemVec,
     pub flags: Flags,
