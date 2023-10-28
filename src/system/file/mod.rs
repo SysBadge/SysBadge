@@ -2,7 +2,7 @@
 //!
 use core::{cmp, mem};
 
-use sha2::Digest;
+pub mod binding;
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -71,62 +71,8 @@ impl<'a> FileWriter<'a> {
         }
     }
 
-    /*
-    #[cfg(feature = "std")]
-    pub fn write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<usize> {
-
-        use sha2::Digest;
-
-        let mut header = FileHeader::default();
-        header.flags = self.flags;
-        let len = cmp::min(self.system.name.len(), mem::size_of_val(&header.system_name) - 1);
-
-        #[cfg(feature = "tracing")]
-        tracing::debug!("Saving {} byte system: {}", len, self.system.name);
-
-        (&mut header.system_name[..len]).copy_from_slice(&self.system.name.as_bytes()[..len]);
-
-        let bin = self.system.get_bin();
-        header.bin_length = bin.len() as u32;
-
-        let (json, json_len) = if self.flags.contains(Flags::JSON_BLOB) {
-            #[cfg(feature = "tracing")]
-            tracing::debug!("Encoding json blob");
-
-            let json = serde_json::to_vec(self.system).unwrap(); // FIXME
-            let len = json.len() as u32;
-            (json, len)
-        } else {
-            (Vec::new(), 0)
-        };
-        header.json_length = json_len;
-
-        //use std::io::Write;
-        let n = writer.write(header.as_bytes())?;
-
-        let mut hasher = if self.flags.contains(Flags::SHA2_CHECKSUM) {
-            Some(sha2::Sha256::new())
-        } else {
-            None
-        };
-
-        let n = n + writer.write(&bin)?;
-        hasher.as_mut().map(|h| h.update(&bin));
-
-        let n = n + writer.write(&json)?;
-        hasher.as_mut().map(|h| h.update(&json));
-
-        let n = if let Some(hasher) = hasher {
-            let hash = hasher.finalize();
-            n + writer.write(&hash[..])?
-        } else {
-            n
-        };
-
-        Ok(n)
-    }*/
-
     pub fn to_vec(&self) -> Vec<u8> {
+        use sha2::Digest;
         let mut vec = Vec::new();
 
         let mut header = FileHeader::default();

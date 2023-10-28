@@ -2598,6 +2598,7 @@ dependencies = [
  "embedded-graphics",
  "fugit",
  "int-enum",
+ "libc",
  "nb 1.1.0",
  "paste",
  "pkrs",
@@ -3418,8 +3419,3 @@ dependencies = [
  "cfg-if 1.0.0",
  "windows-sys 0.48.0",
 ]
-
-[[patch.unused]]
-name = "embassy-rp"
-version = "0.1.0"
-source = "git+https://github.com/embassy-rs/embassy.git?rev=debda2f52c320904755d89ef9c19fa6e54734fe8#debda2f52c320904755d89ef9c19fa6e54734fe8"

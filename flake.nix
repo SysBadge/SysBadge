@@ -44,7 +44,10 @@
         let
           baseName = baseNameOf (toString name);
           memory = baseName == "memory.x";
-          capnp = lib.any (suffix: lib.hasSuffix suffix baseName) [ ".capnp" ];
+          capnp = lib.any (suffix: lib.hasSuffix suffix baseName) [
+            ".capnp"
+            ".sysdf"
+          ];
           web =
             lib.any (suffix: lib.hasSuffix suffix baseName) [ ".html" ".css" ];
         in craneLib.filterCargoSources name type || memory || capnp || web;
@@ -63,7 +66,8 @@
 
           commonArgs = craneLib:
             { lib ? final.lib, stdenv ? final.pkgs.stdenv, SDL2 ? null
-            , libiconv ? final.pkgs.libiconv, toolchain, fw ? true }:
+            , libiconv ? final.pkgs.libiconv, toolchain, target ? null
+            , fw ? true }:
             let
 
               src = cleanSources craneLib (craneLib.path ./.)
@@ -93,8 +97,8 @@
                 ];
               };
 
-              cargoExtraArgs = if fw then
-                "-Z build-std=compiler_builtins,core,alloc --target thumbv6m-none-eabi"
+              cargoExtraArgs = if target != null then
+                "-Z build-std=compiler_builtins,core,alloc,std --target ${target}"
               else
                 "-Z build-std=compiler_builtins,core,alloc,std --target ${
                   rustTarget stdenv.targetPlatform.system
@@ -174,7 +178,7 @@
                   rustTarget stdenv.targetPlatform.system
                 } --package sysbadge-cli";
             })) { };
-          sysbadge_fw_unwraped = final.callPackage
+          sysbadge_fw = final.callPackage
             ({ lib, stdenv, fenix, flip-link, elf2uf2-rs, capnproto, libiconv }:
               let
                 system = stdenv.targetPlatform.system;
@@ -183,6 +187,7 @@
               in craneLib.buildPackage ((commonArgs craneLib {
                 inherit lib stdenv toolchain;
                 fw = true;
+                target = "thumbv7em-none-eabihf";
               }) // {
                 cargoArtifacts = cargoArtifacts craneLib toolchain;
                 pname = "sysbadge-fw";
@@ -200,13 +205,6 @@
                   ${elf2uf2-rs}/bin/elf2uf2-rs $out/share/sysbadge/sysbadge.elf $out/share/sysbadge/sysbadge.uf2
                 '';
               })) { };
-          sysbadge_fw = final.callPackage
-            ({ runCommand, sysbadge_fw_unwraped, elf2uf2-rs }:
-              runCommand "sysbadge-fw" { buildInputs = [ elf2uf2-rs ]; } ''
-                mkdir -p $out/share/sysbadge
-                cp ${sysbadge_fw_unwraped}/bin/sysbadge-fw $out/share/sysbadge/sysbadge.elf
-                elf2uf2-rs $out/share/sysbadge/sysbadge.elf $out/share/sysbadge/sysbadge.uf2
-              '') { };
           sysbadge_wasm_unwraped = final.callPackage
             ({ lib, stdenv, fenix, capnproto }:
               let
@@ -321,8 +319,9 @@
           shell = { lib, stdenv, mkShell, fenix, rust-analyzer-nightly, gdb
             , cargo-watch, cargo-edit, cargo-outdated, cargo-asm, cargo-binutils
             , cargo-expand, libiconv, flip-link, probe-run, SDL2, just, yarn
-            , wasm-bindgen-cli, elf2uf2-rs, libusb1, capnproto-rust, capnproto
-            , pkg-config, openssl, nrf5-sdk, darwin }:
+            , wasm-bindgen-cli, rust-cbindgen, elf2uf2-rs, libusb1
+            , capnproto-rust, capnproto, pkg-config, openssl, nrf5-sdk, darwin
+            }:
             mkShell {
               nativeBuildInputs = [
                 (fenixToolchain fenix)
@@ -346,6 +345,7 @@
 
                 yarn
                 wasm-bindgen-cli
+                rust-cbindgen
               ] ++ lib.optional stdenv.isLinux gdb
                 ++ lib.optionals stdenv.isLinux [ pkg-config openssl ]
                 ++ lib.optionals stdenv.isDarwin [

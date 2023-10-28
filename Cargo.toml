@@ -5,6 +5,11 @@ edition = "2021"
 license = "gpl3"
 authors = [ "Finn Behrens <me@kloenk.dev>" ]
 
+[lib]
+name = "sysbadge"
+crate-type = [ "rlib", "cdylib", "staticlib" ]
+
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = [ ]
@@ -20,7 +25,7 @@ file = [ "alloc", "dep:bitflags", "dep:sha2", "serde", "dep:serde_json" ]
 alloc = [ "defmt?/alloc", "capnp/alloc", "serde_json?/alloc" ]
 clap = [ "dep:clap" ]
 serde = [ "dep:serde", "int-enum/serde" ]
-std = [ "alloc", "int-enum/std", "sha2?/std", "serde_json?/std" ]
+std = [ "alloc", "int-enum/std", "sha2?/std", "serde_json?/std", "dep:libc" ]
 tracing = [ "dep:tracing" ]
 
 [dependencies]
@@ -53,6 +58,7 @@ capnp = { version = "0.18", default-features = false, features= [ ] }
 
 bitflags = { version = "2.4", optional = true }
 sha2 = { version = "0.10", default-features = false, optional = true }
+libc = { version = "0.2", optional = true }
 [build-dependencies]
 capnpc = "0.18"
 
@@ -121,7 +127,7 @@ opt-level = 3
 embedded-graphics-web-simulator = { git = "https://github.com/georgik/embedded-graphics-web-simulator.git", rev = "6faa2cc69fcbb2b9b17ae1f765107a499dd4f8b8" }
 
 # Embassy
-embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
+# embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
 embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
 
 embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
