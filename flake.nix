@@ -120,7 +120,7 @@
         in {
           sysbadge = final.callPackage ({ lib, stdenv, fenix, capnproto
             , libiconv, rust-cbindgen, system ? stdenv.targetPlatform.system
-            , darwin ? null, fixDarwinDylibNames }:
+            , darwin ? null, fixDarwinDylibNames, openssl, pkg-config }:
             let
               toolchain = (fenixToolchain fenix);
               craneLib = crane.lib.${system}.overrideToolchain toolchain;
@@ -132,12 +132,13 @@
               cargoBuildCommand =
                 "cargo rustc --profile library --crate-type=cdylib --crate-type=staticlib";
               pname = "sysbadge";
-              nativeBuildInputs = [ capnproto rust-cbindgen ];
+              nativeBuildInputs = [ capnproto rust-cbindgen ]
+                ++ lib.optional stdenv.isLinux pkg-config;
               buildInputs = lib.optionals stdenv.isDarwin [
                 libiconv
                 darwin.apple_sdk.frameworks.SystemConfiguration
                 fixDarwinDylibNames
-              ];
+              ] ++ lib.optional stdenv.isLinux openssl;
               cargoExtraArgs =
                 "-Z build-std=compiler_builtins,core,alloc,std --target ${
                   rustTarget system
