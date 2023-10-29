@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Sysbadge Documentation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="content">
+            <h1 class="header">Sysbadge User Manual</h1>
+            <div class="prose">
+                <p>
+                    To get started with your Sysbadge, follow these steps:
+                </p>
+                <ol>
+                    <li>Connect your badge display unit to your PC's USB port.</li>
+                    <li>Locate the <strong>{boot}</strong> and <strong>{rst}</strong> buttons on the back of the display.</li>
+                    <li>Press and hold <strong>{boot}</strong> for 3 seconds, then press <strong>{rst}</strong> while holding <strong>{boot}</strong>.</li>
+                    <li>This will connect the display to your PC, allowing file transfer.</li>
+                    <li>Download the firmware UF2 file from <a href="sysbadge.uf2" class="underline">this link</a> and copy it to your display.</li>
+                    <li>The badge will disconnect from the PC. Reconnect it by following the same steps.</li>
+                    <li>Visit <a href="https://pluralkit.me/" class="underline">PluralKit</a> to obtain your system ID.</li>
+                    <li>Enter your system ID on <a href="/" class="underline">this page</a> to get the data file, and copy it to your badge display.</li>
+                </ol>
+                <p>Once completed, you can disconnect any connected power sources.</p>
+
+                <p><strong>Note:</strong> A power source is required to use your Sysbadge.</p>
+
+                <p>
+                    When powered on, the badge should display your system name. Press <strong>B</strong> for software and support information.
+                    Press <strong>B</strong> again to return to your system name, and use <strong>C</strong> to access the Name list.
+                    To edit a name, select the cell by pressing <strong>B</strong>, which will highlight it, and then use the up or down buttons to edit.
+                    You can display multiple people by pressing <strong>C</strong> again to show 2, 3, or 4 cells, and select the cell to edit with <strong>B</strong>.
+                </p>
+
+                <p>
+                    If there's no activity for 30 seconds (configurable during build), the badge will enter sleep mode to save energy.
+                    It will return to the starting screen when it wakes up, as it can't save its state.
+                </p>
+
+                <p><strong>Optional:</strong></p>
+                <p>For added protection, you can find a 3D printable case <a href="https://www.printables.com/de/model/167251-badger-2040-enclosure/files" class="underline">here</a>. Assemble it using 2.5x 10mm screws or glue.</p>
+                <p>Compatible power sources include power banks and USB-C to USB-C cables.</p>
+                <p>We do not receive compensation for these recommendations; we simply want to assist the Plural Community.</p>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        Powered by <a href="https://github.com/SysBadge/SysBadge" class="underline" target="_blank" rel="noopener noreferrer">Sysbadge</a> | <a href="index.html" class="underline">Main page</a>
+    </footer>
+</body>
+</html>
