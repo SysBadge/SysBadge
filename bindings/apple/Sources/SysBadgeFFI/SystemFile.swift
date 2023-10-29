@@ -10,6 +10,11 @@ import Darwin
 #else
 import Glibc
 #endif
+
+#if canImport(Foundation)
+import Foundation
+#endif
+
 import sysbadge_ffi
 
 public class SystemFile {
@@ -23,6 +28,26 @@ public class SystemFile {
             throw ErrorFFI(err_code: err)
         }
     }
+    
+    public init(from bytes: [UInt8]) throws {
+        let err = bytes.withUnsafeBufferPointer { ptr in
+            sysbadge_ffi.sb_file_open_bytes(&self.sb_file, ptr.baseAddress, ptr.count)
+        }
+        if err < 0 {
+            throw ErrorFFI(err_code: err)
+        }
+    }
+    
+    #if canImport(Foundation)
+    public init(from data: Data) throws {
+        let err = data.withUnsafeBytes { ptr in
+            sysbadge_ffi.sb_file_open_bytes(&self.sb_file, ptr.baseAddress, ptr.count)
+        }
+        if err < 0 {
+            throw ErrorFFI(err_code: err)
+        }
+    }
+    #endif
    
     public var name: String {
         let name = sysbadge_ffi.sb_file_system_name(self.sb_file)

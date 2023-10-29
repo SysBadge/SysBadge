@@ -122,7 +122,7 @@ pub unsafe extern "C" fn sb_system_file_writer_new(
 #[export_name = "sb_system_file_writer_bytes"]
 pub unsafe extern "C" fn sb_system_file_writer_bytes(
     writer: *const FileWriter,
-    buffer: *mut *const u8,
+    buffer: *mut *mut u8,
 ) -> usize {
     let writer = unsafe { &*writer };
     let bytes = writer.to_vec();

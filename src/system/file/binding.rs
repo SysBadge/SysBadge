@@ -38,6 +38,30 @@ pub unsafe extern "C" fn sb_file_open(
     0
 }
 
+/// Open a SysBadge system definition file from memory.
+///
+/// This creates a new `File` object from a byte slice.
+///
+/// Has to be freed using [`sb_file_free`].
+#[cfg(feature = "alloc")]
+#[export_name = "sb_file_open_bytes"]
+pub unsafe extern "C" fn sb_file_open_bytes(
+    file: *mut *mut File,
+    ptr: *const u8,
+    len: usize,
+) -> core::ffi::c_int {
+    let slice = unsafe { core::slice::from_raw_parts(ptr, len) };
+    let new = match File::from_byte_slice(slice) {
+        Ok(new) => new,
+        Err(_) => return -(crate::binding::StatusCode::FailedToCreate as core::ffi::c_int),
+    };
+
+    let new = alloc::boxed::Box::new(new);
+    let new = Box::leak(new);
+    unsafe { file.write(new) };
+    0
+}
+
 /// Get the header of a SysBadge system definition file.
 ///
 /// This only returns a reference, which is valid as long as the file is not freed.

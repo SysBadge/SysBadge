@@ -194,6 +194,74 @@ impl File {
         }))
     }
 
+    pub fn from_byte_slice(slice: &[u8]) -> Result<Self, ()> {
+        if slice.len() < mem::size_of::<FileHeader>() {
+            return Err(());
+        }
+        let header_end = core::mem::size_of::<FileHeader>();
+        let header = FileHeader::from_bytes((&slice[0..header_end]).try_into().unwrap());
+
+        if header.magic != FileHeader::MAGIC {
+            #[cfg(feature = "tracing")]
+            tracing::warn!("Invalid file header {:x?}", header.magic);
+
+            return Err(());
+        }
+
+        if header.version != 1 {
+            #[cfg(feature = "tracing")]
+            tracing::warn!("Cannot handle file version {}", header.version);
+
+            return Err(());
+        }
+
+        #[cfg(feature = "tracing")]
+        tracing::trace!("Read header: {:?}", header);
+
+        let mut payload = Vec::with_capacity(header.bin_length as usize);
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                slice.as_ptr().add(header_end),
+                payload.as_mut_ptr(),
+                header.bin_length as usize,
+            );
+            payload.set_len(header.bin_length as usize);
+        }
+
+        let json = if header.flags.contains(Flags::JSON_BLOB) {
+            let mut json = Vec::with_capacity(header.json_length as usize);
+            unsafe {
+                core::ptr::copy_nonoverlapping(
+                    slice.as_ptr().add(header_end + header.bin_length as usize),
+                    json.as_mut_ptr(),
+                    header.json_length as usize,
+                );
+                json.set_len(header.json_length as usize);
+            }
+            Some(json)
+        } else {
+            None
+        };
+
+        let rest_start = header_end + header.bin_length as usize + header.json_length as usize;
+        let rest = slice[rest_start..].to_vec();
+
+        #[cfg(feature = "tracing")]
+        tracing::debug!(
+            "Read file: payload={}, json={}, rest={}",
+            payload.len(),
+            json.as_ref().map(Vec::len).unwrap_or_default(),
+            rest.len()
+        );
+
+        Ok(Self {
+            header: header.clone(),
+            payload,
+            json,
+            rest,
+        })
+    }
+
     #[cfg(feature = "std")]
     pub fn read_or_bin<Reader: std::io::Read>(reader: &mut Reader) -> std::io::Result<Self> {
         if let Some(file) = Self::read(reader)? {
@@ -273,5 +341,42 @@ mod test {
         // test that size does not change
         assert_eq!(mem::size_of::<Flags>(), 4);
         assert_eq!(mem::size_of::<FileHeader>(), 212);
+    }
+
+    #[test]
+    fn write_and_read_slice() {
+        let mut system = crate::system::SystemVec::new("test".to_string());
+        system.members.push(crate::system::MemberStrings {
+            name: "test".to_string(),
+            pronouns: "test".to_string(),
+        });
+        let writer = FileWriter::new(&system);
+        let vec = writer.to_vec();
+        let file = File::from_byte_slice(&vec).unwrap();
+        assert_eq!(file.header.flags, writer.flags);
+        assert_eq!(file.header.bin_length, system.get_bin().len() as u32);
+        assert_ne!(file.header.json_length, 0);
+        assert_eq!(file.payload, system.get_bin());
+        assert!(file.json.is_some());
+        assert!(file.verify());
+    }
+
+    #[test]
+    fn write_and_read_slice_no_json() {
+        let mut system = crate::system::SystemVec::new("test".to_string());
+        system.members.push(crate::system::MemberStrings {
+            name: "test".to_string(),
+            pronouns: "test".to_string(),
+        });
+        let mut writer = FileWriter::new(&system);
+        writer.flags.remove(Flags::JSON_BLOB);
+        let vec = writer.to_vec();
+        let file = File::from_byte_slice(&vec).unwrap();
+        assert_eq!(file.header.flags, writer.flags);
+        assert_eq!(file.header.bin_length, system.get_bin().len() as u32);
+        assert_eq!(file.header.json_length, 0);
+        assert_eq!(file.payload, system.get_bin());
+        assert_eq!(file.json, None);
+        assert!(file.verify());
     }
 }
