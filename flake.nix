@@ -201,7 +201,10 @@
               cargoArtifacts = cargoArtifacts craneLib toolchain;
               pname = "sysbadge-cli";
               buildInputs = [ libusb1 ] ++ lib.optional stdenv.isLinux openssl
-                ++ lib.optional stdenv.isDarwin libiconv;
+                ++ lib.optionals stdenv.isDarwin [
+                  libiconv
+                  darwin.apple_sdk.frameworks.SystemConfiguration
+                ];
               nativeBuildInputs = [ capnproto ]
                 ++ lib.optional stdenv.isLinux pkg-config
                 ++ lib.optional stdenv.isDarwin darwin.DarwinTools;

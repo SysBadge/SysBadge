@@ -1,3 +1,6 @@
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+
 use super::{File, FileHeader};
 use crate::system::SystemVec;
 
@@ -122,7 +125,7 @@ pub unsafe extern "C" fn sb_file_json(file: *const File) -> *mut core::ffi::c_ch
         None => return core::ptr::null_mut(),
     };
 
-    let json = match std::str::from_utf8(json) {
+    let json = match core::str::from_utf8(json) {
         Ok(json) => json,
         Err(_) => return core::ptr::null_mut(),
     };

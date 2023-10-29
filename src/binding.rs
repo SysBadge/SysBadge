@@ -1,3 +1,6 @@
+#[cfg(feature = "alloc")]
+use alloc::string::ToString;
+
 /// Free a CString allocated by libSysBadge.
 #[cfg(feature = "alloc")]
 #[export_name = "sb_free_string"]
@@ -42,7 +45,7 @@ impl core::fmt::Display for StatusCode {
 #[cfg(feature = "alloc")]
 #[export_name = "sb_status_code_debug_string"]
 pub unsafe extern "C" fn sb_status_code_debug_string(code: StatusCode) -> *mut core::ffi::c_char {
-    let str = alloc::ffi::CString::new(format!("{:?}", code)).unwrap();
+    let str = alloc::ffi::CString::new(alloc::format!("{:?}", code)).unwrap();
     str.into_raw()
 }
 

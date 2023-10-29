@@ -1,4 +1,6 @@
+use alloc::boxed::Box;
 use alloc::ffi::CString;
+use alloc::string::ToString;
 
 use super::{GenericDownloader, Source};
 use crate::system::SystemVec;
@@ -12,7 +14,7 @@ pub unsafe extern "C" fn sb_downloader_generic_new(
     let useragent = if useragent.is_null() {
         None
     } else {
-        match unsafe { std::ffi::CStr::from_ptr(useragent) }.to_str() {
+        match unsafe { core::ffi::CStr::from_ptr(useragent) }.to_str() {
             Ok(useragent) => Some(useragent),
             Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
         }
@@ -54,7 +56,7 @@ pub unsafe extern "C" fn sb_downloader_get(
     id: *const core::ffi::c_char,
     system: *mut *mut SystemVec,
 ) -> core::ffi::c_int {
-    let id = match unsafe { std::ffi::CStr::from_ptr(id) }.to_str() {
+    let id = match unsafe { core::ffi::CStr::from_ptr(id) }.to_str() {
         Ok(id) => id,
         Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };
@@ -81,7 +83,7 @@ pub unsafe extern "C" fn sb_downloader_generic_set_useragent(
     downloader: *mut GenericDownloader,
     useragent: *const core::ffi::c_char,
 ) -> core::ffi::c_int {
-    let useragent = match unsafe { std::ffi::CStr::from_ptr(useragent) }.to_str() {
+    let useragent = match unsafe { core::ffi::CStr::from_ptr(useragent) }.to_str() {
         Ok(useragent) => useragent,
         Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };

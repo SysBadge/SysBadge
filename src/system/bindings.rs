@@ -1,7 +1,8 @@
 use alloc::boxed::Box;
+use alloc::string::ToString;
 
+#[cfg(feature = "file")]
 use super::file::FileWriter;
-use super::system_capnp::system;
 use super::SystemVec;
 
 /// Create a new system.
@@ -12,7 +13,7 @@ pub unsafe extern "C" fn sb_system_new(
     system: *mut *mut SystemVec,
     name: *const core::ffi::c_char,
 ) -> core::ffi::c_int {
-    let name = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
+    let name = match unsafe { core::ffi::CStr::from_ptr(name) }.to_str() {
         Ok(name) => name.to_string(),
         Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };
@@ -86,11 +87,11 @@ pub unsafe extern "C" fn sb_system_push_member(
     system: *mut SystemVec,
     member: *const CMember,
 ) -> core::ffi::c_int {
-    let name = match unsafe { std::ffi::CStr::from_ptr((*member).name) }.to_str() {
+    let name = match unsafe { core::ffi::CStr::from_ptr((*member).name) }.to_str() {
         Ok(name) => name.to_string(),
         Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };
-    let pronouns = match unsafe { std::ffi::CStr::from_ptr((*member).pronouns) }.to_str() {
+    let pronouns = match unsafe { core::ffi::CStr::from_ptr((*member).pronouns) }.to_str() {
         Ok(pronouns) => pronouns.to_string(),
         Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };
@@ -108,6 +109,7 @@ pub unsafe extern "C" fn sb_system_sort(system: *mut SystemVec) {
     system.sort_members();
 }
 
+#[cfg(feature = "file")]
 #[export_name = "sb_system_file_writer_new"]
 pub unsafe extern "C" fn sb_system_file_writer_new(
     system: *const SystemVec,
@@ -119,6 +121,7 @@ pub unsafe extern "C" fn sb_system_file_writer_new(
 /// Return file bytes.
 ///
 /// This returns a newly allocated buffer, which has to be freed using [`sb_free_buffer`].
+#[cfg(feature = "file")]
 #[export_name = "sb_system_file_writer_bytes"]
 pub unsafe extern "C" fn sb_system_file_writer_bytes(
     writer: *const FileWriter,
@@ -133,12 +136,13 @@ pub unsafe extern "C" fn sb_system_file_writer_bytes(
 }
 
 /// Write a file.
+#[cfg(all(feature = "file", feature = "std"))]
 #[export_name = "sb_system_file_writer_write"]
 pub unsafe extern "C" fn sb_system_file_writer_write(
     writer: *const FileWriter,
     path: *const core::ffi::c_char,
 ) -> core::ffi::c_int {
-    let path = match unsafe { std::ffi::CStr::from_ptr(path) }.to_str() {
+    let path = match unsafe { core::ffi::CStr::from_ptr(path) }.to_str() {
         Ok(path) => path,
         Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };

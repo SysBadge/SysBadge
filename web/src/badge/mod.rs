@@ -26,7 +26,7 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
         );
 
         let system = create_system();
-        let mut sysbadge = Sysbadge::new(display, system);
+        let mut sysbadge = Sysbadge::new(display, Some(system));
 
         sysbadge.draw().unwrap();
 

@@ -1,5 +1,6 @@
 //! File header and helper functions.
 //!
+use alloc::vec::Vec;
 use core::{cmp, mem};
 
 pub mod binding;
