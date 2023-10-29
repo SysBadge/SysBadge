@@ -6,7 +6,7 @@ use crate::system::SystemVec;
 /// Create a new generic downloader.
 #[export_name = "sb_downloader_new"]
 pub unsafe extern "C" fn sb_downloader_generic_new(
-    downloader: *mut GenericDownloader,
+    downloader: *mut *mut GenericDownloader,
     useragent: *const core::ffi::c_char,
 ) -> core::ffi::c_int {
     let useragent = if useragent.is_null() {
@@ -14,7 +14,7 @@ pub unsafe extern "C" fn sb_downloader_generic_new(
     } else {
         match unsafe { std::ffi::CStr::from_ptr(useragent) }.to_str() {
             Ok(useragent) => Some(useragent),
-            Err(_) => return -libc::EINVAL,
+            Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
         }
     };
 
@@ -23,7 +23,8 @@ pub unsafe extern "C" fn sb_downloader_generic_new(
         None => GenericDownloader::new(),
     };
 
-    unsafe { downloader.write(new) };
+    let new = Box::new(new);
+    unsafe { downloader.write(Box::leak(new)) };
     0
 }
 
@@ -51,24 +52,26 @@ pub unsafe extern "C" fn sb_downloader_get(
     downloader: *const GenericDownloader,
     source: Source,
     id: *const core::ffi::c_char,
-    system: *mut SystemVec,
+    system: *mut *mut SystemVec,
 ) -> core::ffi::c_int {
     let id = match unsafe { std::ffi::CStr::from_ptr(id) }.to_str() {
         Ok(id) => id,
-        Err(_) => return -libc::EINVAL,
+        Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };
 
     let downloader = unsafe { &*downloader };
 
     let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
         .build()
         .unwrap();
     let system_new = match rt.block_on(downloader.get(source, id)) {
         Ok(system) => system,
-        Err(_) => return -libc::EINVAL,
+        Err(_) => return -(crate::binding::StatusCode::FailedToWrite as core::ffi::c_int),
     };
 
-    unsafe { system.write(system_new) };
+    let system_new = Box::new(system_new);
+    unsafe { system.write(Box::leak(system_new)) };
     0
 }
 
@@ -80,7 +83,7 @@ pub unsafe extern "C" fn sb_downloader_generic_set_useragent(
 ) -> core::ffi::c_int {
     let useragent = match unsafe { std::ffi::CStr::from_ptr(useragent) }.to_str() {
         Ok(useragent) => useragent,
-        Err(_) => return -libc::EINVAL,
+        Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };
 
     let downloader = unsafe { &mut *downloader };
@@ -91,5 +94,5 @@ pub unsafe extern "C" fn sb_downloader_generic_set_useragent(
 /// Free a generic downloader.
 #[export_name = "sb_downloader_free"]
 pub unsafe extern "C" fn sb_downloader_generic_free(downloader: *mut GenericDownloader) {
-    unsafe { std::ptr::drop_in_place(downloader) };
+    drop(unsafe { Box::from_raw(downloader) });
 }

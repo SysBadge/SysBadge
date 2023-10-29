@@ -37,17 +37,6 @@ impl SystemVec {
 }
 
 impl SystemVec {
-    #[cfg(any(feature = "uf2", doc))]
-    pub fn get_uf2(&self, offset: u32) -> alloc::vec::Vec<u8> {
-        let buf = self.get_bin();
-        Self::bin_to_uf2(&buf, offset)
-    }
-
-    #[cfg(any(feature = "uf2", doc))]
-    pub fn bin_to_uf2(bin: &[u8], offset: u32) -> alloc::vec::Vec<u8> {
-        uf2::bin_to_uf2(bin, uf2::RP2040_FAMILY_ID, offset)
-    }
-
     pub fn get_bin(&self) -> alloc::vec::Vec<u8> {
         let builder = self.capnp_builder();
         capnp::serialize::write_message_to_words(&builder)
@@ -81,6 +70,24 @@ impl SystemVec {
             }
         }
         builder
+    }
+
+    pub fn from_capnp_bytes(mut slice: &[u8]) -> capnp::Result<Self> {
+        let reader = super::SystemReader::from_byte_slice(&mut slice)?;
+        let mut ret = Self::new(reader.name().to_string());
+        // TODO: source id
+
+        let count = reader.member_count();
+        ret.members.reserve_exact(count);
+        for i in 0..count {
+            let member = reader.member(i);
+            ret.members.push(MemberStrings {
+                name: member.name().to_string(),
+                pronouns: member.pronouns().to_string(),
+            });
+        }
+
+        Ok(ret)
     }
 }
 

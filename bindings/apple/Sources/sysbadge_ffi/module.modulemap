@@ -1,0 +1,4 @@
+module sysbadge_ffi [system] [extern_c] {
+    header "../../generated/sysbadge.h"
+    link "sysbadge"
+}

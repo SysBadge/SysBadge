@@ -2692,7 +2692,6 @@ dependencies = [
  "embedded-graphics",
  "fugit",
  "int-enum",
- "libc",
  "nb 1.1.0",
  "paste",
  "pkrs",

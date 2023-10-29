@@ -1,4 +1,5 @@
 use super::{File, FileHeader};
+use crate::system::SystemVec;
 
 /// Open a SysBadge system definition file.
 ///
@@ -9,27 +10,29 @@ use super::{File, FileHeader};
 #[export_name = "sb_file_open"]
 pub unsafe extern "C" fn sb_file_open(
     path: *const core::ffi::c_char,
-    out_file: *mut File,
+    out_file: *mut *mut File,
 ) -> core::ffi::c_int {
     let path = match unsafe { std::ffi::CStr::from_ptr(path) }.to_str() {
         Ok(path) => path,
-        Err(_) => return -libc::EINVAL,
+        Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };
 
     let file = match std::fs::File::open(path) {
         Ok(file) => file,
         Err(e) => match e.raw_os_error() {
             Some(e) => return -e,
-            None => return -libc::EINVAL,
+            None => return -(crate::binding::StatusCode::FailedToCreate as core::ffi::c_int),
         },
     };
 
     let file = match File::read(&mut std::io::BufReader::new(file)) {
         Ok(Some(file)) => file,
-        Ok(_) => return -libc::EINVAL,
-        Err(_) => return -libc::EINVAL,
+        Ok(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
+        Err(_) => return -(crate::binding::StatusCode::FailedToWrite as core::ffi::c_int),
     };
 
+    let file = alloc::boxed::Box::new(file);
+    let file = Box::leak(file);
     unsafe { out_file.write(file) };
 
     0
@@ -52,6 +55,27 @@ pub unsafe extern "C" fn sb_file_system_name(file: *const File) -> *const core::
     let file = unsafe { &*file };
     let name = &file.header.system_name;
     name.as_ptr() as *const core::ffi::c_char
+}
+
+/// Get the system of the file
+///
+/// This returns a newly allocated system, which has to be freed using [`sb_system_free`].
+///
+/// Returns the member count of the new system.
+#[export_name = "sb_file_system"]
+pub unsafe extern "C" fn sb_file_system(
+    file: *const File,
+    system: *mut *mut SystemVec,
+) -> core::ffi::c_int {
+    let file = unsafe { &*file };
+    let new = match SystemVec::from_capnp_bytes(&file.payload) {
+        Ok(new) => new,
+        Err(_) => return -(crate::binding::StatusCode::FailedToCreate as core::ffi::c_int),
+    };
+
+    let count = new.members.len();
+    unsafe { system.write(Box::leak(Box::new(new))) };
+    count as core::ffi::c_int
 }
 
 /// Get the json blob of a SysBadge system definition file.
@@ -97,5 +121,5 @@ pub unsafe extern "C" fn sb_file_verify(file: *const File) -> bool {
 /// Free a SysBadge system definition file.
 #[export_name = "sb_file_free"]
 pub unsafe extern "C" fn sb_file_free(file: *mut File) {
-    unsafe { core::ptr::drop_in_place(file) };
+    drop(unsafe { alloc::boxed::Box::from_raw(file) });
 }

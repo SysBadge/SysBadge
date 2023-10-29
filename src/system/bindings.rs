@@ -1,4 +1,4 @@
-use libc::system;
+use alloc::boxed::Box;
 
 use super::file::FileWriter;
 use super::system_capnp::system;
@@ -9,17 +9,19 @@ use super::SystemVec;
 /// This returns a newly allocated system, which has to be freed using [`sb_system_free`].
 #[export_name = "sb_system_new"]
 pub unsafe extern "C" fn sb_system_new(
-    system: *mut SystemVec,
+    system: *mut *mut SystemVec,
     name: *const core::ffi::c_char,
 ) -> core::ffi::c_int {
     let name = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
         Ok(name) => name.to_string(),
-        Err(_) => return -libc::EINVAL,
+        Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };
 
     let new = SystemVec::new(name);
 
-    unsafe { system.write(new) };
+    let new = Box::new(new);
+
+    unsafe { system.write(Box::leak(new)) };
     0
 }
 
@@ -29,7 +31,7 @@ pub unsafe extern "C" fn sb_system_new(
 ///
 /// [`sb_free_string`]: crate::binding::sb_free_string
 #[export_name = "sb_system_name"]
-pub unsafe extern "C" fn sb_system_name(system: *const SystemVec) -> *const core::ffi::c_char {
+pub unsafe extern "C" fn sb_system_name(system: *const SystemVec) -> *mut core::ffi::c_char {
     let system = unsafe { &*system };
     let name = &system.name;
     let name = alloc::ffi::CString::new(name.as_str()).unwrap();
@@ -59,7 +61,7 @@ pub unsafe extern "C" fn sb_system_get_member(
 ) -> core::ffi::c_int {
     let system = unsafe { &*system };
     if system.members.len() <= index {
-        return -libc::EINVAL;
+        return -(crate::binding::StatusCode::InvalidIndex as core::ffi::c_int);
     }
 
     let system_member = &system.members[index];
@@ -86,17 +88,24 @@ pub unsafe extern "C" fn sb_system_push_member(
 ) -> core::ffi::c_int {
     let name = match unsafe { std::ffi::CStr::from_ptr((*member).name) }.to_str() {
         Ok(name) => name.to_string(),
-        Err(_) => return -libc::EINVAL,
+        Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };
     let pronouns = match unsafe { std::ffi::CStr::from_ptr((*member).pronouns) }.to_str() {
         Ok(pronouns) => pronouns.to_string(),
-        Err(_) => return -libc::EINVAL,
+        Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };
     let member = super::MemberStrings { name, pronouns };
 
     let system = unsafe { &mut *system };
     system.members.push(member);
     system.members.len() as core::ffi::c_int
+}
+
+/// Sort a system.
+#[export_name = "sb_system_sort"]
+pub unsafe extern "C" fn sb_system_sort(system: *mut SystemVec) {
+    let system = unsafe { &mut *system };
+    system.sort_members();
 }
 
 #[export_name = "sb_system_file_writer_new"]
@@ -119,7 +128,7 @@ pub unsafe extern "C" fn sb_system_file_writer_bytes(
     let bytes = writer.to_vec();
     let bytes = bytes.into_boxed_slice();
     let len = bytes.len();
-    unsafe { buffer.write(bytes.as_ptr()) };
+    unsafe { buffer.write(Box::into_raw(bytes).cast()) };
     len
 }
 
@@ -131,25 +140,25 @@ pub unsafe extern "C" fn sb_system_file_writer_write(
 ) -> core::ffi::c_int {
     let path = match unsafe { std::ffi::CStr::from_ptr(path) }.to_str() {
         Ok(path) => path,
-        Err(_) => return -libc::EINVAL,
+        Err(_) => return -(crate::binding::StatusCode::InvalidArgument as core::ffi::c_int),
     };
     let file = match std::fs::File::create(path) {
         Ok(file) => file,
-        Err(_) => return -libc::EINVAL,
+        Err(_) => return -(crate::binding::StatusCode::FailedToCreate as core::ffi::c_int),
     };
 
     let writer = unsafe { &*writer };
     let bytes = writer.to_vec();
     match std::io::Write::write_all(&mut std::io::BufWriter::new(file), &bytes) {
         Ok(_) => bytes.len() as core::ffi::c_int,
-        Err(_) => -libc::EINVAL,
+        Err(_) => -(crate::binding::StatusCode::FailedToWrite as core::ffi::c_int),
     }
 }
 
 /// Free a system.
 #[export_name = "sb_system_free"]
 pub unsafe extern "C" fn sb_system_free(system: *mut SystemVec) {
-    unsafe { std::ptr::drop_in_place(system) };
+    drop(unsafe { Box::from_raw(system) })
 }
 
 /// Free a system member.
