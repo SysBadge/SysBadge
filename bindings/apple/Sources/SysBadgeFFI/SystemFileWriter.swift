@@ -10,6 +10,9 @@ import Darwin
 #else
 import Glibc
 #endif
+#if canImport(Foundation)
+import Foundation
+#endif
 import sysbadge_ffi
 
 public class SystemFileWriter {
@@ -49,7 +52,7 @@ public class SystemFileWriter {
         }
     }
     
-    public func bytes() throws -> [UInt8] {
+    public func bytes() -> [UInt8] {
         var ptr: UnsafeMutablePointer<UInt8>?
         let size = sysbadge_ffi.sb_system_file_writer_bytes(&self.writer, &ptr)
         
@@ -57,6 +60,17 @@ public class SystemFileWriter {
         sysbadge_ffi.sb_free_buffer(ptr!, size)
         return arr
     }
+    
+    #if canImport(Foundation)
+    public func data() -> Data {
+        var ptr: UnsafeMutablePointer<UInt8>?
+        let size = sysbadge_ffi.sb_system_file_writer_bytes(&self.writer, &ptr)
+        
+        let data = Data(UnsafeBufferPointer(start: ptr, count: size))
+        sysbadge_ffi.sb_free_buffer(ptr, size)
+        return data
+    }
+    #endif
     
     public struct Flags: OptionSet {
         public var rawValue: UInt32
