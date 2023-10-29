@@ -400,8 +400,14 @@ impl<U: UsbContext> App<U> {
         let count = self.badge.member_count().unwrap_or(0);
         let mut members = Vec::with_capacity(count as usize);
         for i in 0..count {
-            let name = self.badge.member_name(i).unwrap_or("Unknown".to_string());
-            let pronouns = self.badge.member_pronouns(i).unwrap_or("".to_string());
+            let name = self
+                .badge
+                .system_member_name(i)
+                .unwrap_or("Unknown".to_string());
+            let pronouns = self
+                .badge
+                .system_member_pronouns(i)
+                .unwrap_or("".to_string());
             members.push((name, pronouns));
         }
         members

@@ -44,7 +44,11 @@
         let
           baseName = baseNameOf (toString name);
           memory = baseName == "memory.x";
-          capnp = lib.any (suffix: lib.hasSuffix suffix baseName) [ ".capnp" ];
+          capnp = lib.any (suffix: lib.hasSuffix suffix baseName) [
+            ".capnp"
+            ".sysdf"
+            ".toml"
+          ];
           web =
             lib.any (suffix: lib.hasSuffix suffix baseName) [ ".html" ".css" ];
         in craneLib.filterCargoSources name type || memory || capnp || web;
@@ -63,7 +67,8 @@
 
           commonArgs = craneLib:
             { lib ? final.lib, stdenv ? final.pkgs.stdenv, SDL2 ? null
-            , libiconv ? final.pkgs.libiconv, toolchain, fw ? true }:
+            , libiconv ? final.pkgs.libiconv, toolchain, target ? null
+            , fw ? true }:
             let
 
               src = cleanSources craneLib (craneLib.path ./.)
@@ -93,8 +98,8 @@
                 ];
               };
 
-              cargoExtraArgs = if fw then
-                "-Z build-std=compiler_builtins,core,alloc --target thumbv6m-none-eabi"
+              cargoExtraArgs = if target != null then
+                "-Z build-std=compiler_builtins,core,alloc,std --target ${target}"
               else
                 "-Z build-std=compiler_builtins,core,alloc,std --target ${
                   rustTarget stdenv.targetPlatform.system
@@ -113,6 +118,38 @@
               doCheck = false;
             });
         in {
+          sysbadge = final.callPackage ({ lib, stdenv, fenix, capnproto
+            , libiconv, rust-cbindgen, system ? stdenv.targetPlatform.system
+            , darwin ? null, fixDarwinDylibNames, openssl, pkg-config }:
+            let
+              toolchain = (fenixToolchain fenix);
+              craneLib = crane.lib.${system}.overrideToolchain toolchain;
+            in craneLib.buildPackage ((commonArgs craneLib {
+              inherit lib stdenv libiconv toolchain;
+              fw = false;
+            }) // {
+              cargoArtifacts = cargoArtifacts craneLib toolchain;
+              cargoBuildCommand =
+                "cargo rustc --profile library --crate-type=cdylib --crate-type=staticlib";
+              pname = "sysbadge";
+              nativeBuildInputs = [ capnproto rust-cbindgen ]
+                ++ lib.optional stdenv.isLinux pkg-config;
+              buildInputs = lib.optionals stdenv.isDarwin [
+                libiconv
+                darwin.apple_sdk.frameworks.SystemConfiguration
+                fixDarwinDylibNames
+              ] ++ lib.optional stdenv.isLinux openssl;
+              cargoExtraArgs =
+                "-Z build-std=compiler_builtins,core,alloc,std --target ${
+                  rustTarget system
+                } --package sysbadge --features=std,tracing,tokio,downloader,file,serde";
+
+              outputs = [ "out" "dev" ];
+              postInstall = ''
+                mkdir -p $dev/include/
+                cbindgen --config cbindgen.toml --crate sysbadge --output $dev/include/sysbadge.h
+              '';
+            })) { };
           sysbadge_simulator = final.callPackage
             ({ lib, stdenv, fenix, SDL2, capnproto, libiconv }:
               let
@@ -150,7 +187,7 @@
               cargoExtraArgs =
                 "-Z build-std=compiler_builtins,core,alloc,std --target ${
                   rustTarget stdenv.targetPlatform.system
-                } --package sysbadge-usb --bin tui";
+                } --package sysbadge-usb --bin tui --features tui";
             })) { };
           sysbadge_cli = final.callPackage ({ lib, stdenv, fenix, libiconv
             , libusb1, capnproto, openssl, pkg-config, darwin ? null }:
@@ -165,7 +202,10 @@
               cargoArtifacts = cargoArtifacts craneLib toolchain;
               pname = "sysbadge-cli";
               buildInputs = [ libusb1 ] ++ lib.optional stdenv.isLinux openssl
-                ++ lib.optional stdenv.isDarwin libiconv;
+                ++ lib.optionals stdenv.isDarwin [
+                  libiconv
+                  darwin.apple_sdk.frameworks.SystemConfiguration
+                ];
               nativeBuildInputs = [ capnproto ]
                 ++ lib.optional stdenv.isLinux pkg-config
                 ++ lib.optional stdenv.isDarwin darwin.DarwinTools;
@@ -174,7 +214,7 @@
                   rustTarget stdenv.targetPlatform.system
                 } --package sysbadge-cli";
             })) { };
-          sysbadge_fw_unwraped = final.callPackage
+          sysbadge_fw = final.callPackage
             ({ lib, stdenv, fenix, flip-link, elf2uf2-rs, capnproto, libiconv }:
               let
                 system = stdenv.targetPlatform.system;
@@ -183,6 +223,7 @@
               in craneLib.buildPackage ((commonArgs craneLib {
                 inherit lib stdenv toolchain;
                 fw = true;
+                target = "thumbv7em-none-eabihf";
               }) // {
                 cargoArtifacts = cargoArtifacts craneLib toolchain;
                 pname = "sysbadge-fw";
@@ -190,7 +231,7 @@
                 buildInputs = [ flip-link ]
                   ++ lib.optional stdenv.isDarwin libiconv;
                 cargoExtraArgs =
-                  "-Z build-std=compiler_builtins,core,alloc --target thumbv6m-none-eabi --package sysbadge-fw";
+                  "-Z build-std=compiler_builtins,core,alloc --target thumbv7em-none-eabihf --package sysbadge-fw";
 
                 postInstallPhases = ''
                   mkdir -p $out/share/sysbadge
@@ -200,13 +241,6 @@
                   ${elf2uf2-rs}/bin/elf2uf2-rs $out/share/sysbadge/sysbadge.elf $out/share/sysbadge/sysbadge.uf2
                 '';
               })) { };
-          sysbadge_fw = final.callPackage
-            ({ runCommand, sysbadge_fw_unwraped, elf2uf2-rs }:
-              runCommand "sysbadge-fw" { buildInputs = [ elf2uf2-rs ]; } ''
-                mkdir -p $out/share/sysbadge
-                cp ${sysbadge_fw_unwraped}/bin/sysbadge-fw $out/share/sysbadge/sysbadge.elf
-                elf2uf2-rs $out/share/sysbadge/sysbadge.elf $out/share/sysbadge/sysbadge.uf2
-              '') { };
           sysbadge_wasm_unwraped = final.callPackage
             ({ lib, stdenv, fenix, capnproto }:
               let
@@ -216,6 +250,7 @@
               in craneLib.buildPackage ((commonArgs craneLib {
                 inherit lib stdenv toolchain;
                 fw = false;
+                target = "wasm32-unknown-unknown";
               }) // {
                 cargoArtifacts = cargoArtifacts craneLib toolchain;
                 pname = "sysbadge-wasm-unwraped";
@@ -321,8 +356,9 @@
           shell = { lib, stdenv, mkShell, fenix, rust-analyzer-nightly, gdb
             , cargo-watch, cargo-edit, cargo-outdated, cargo-asm, cargo-binutils
             , cargo-expand, libiconv, flip-link, probe-run, SDL2, just, yarn
-            , wasm-bindgen-cli, elf2uf2-rs, libusb1, capnproto-rust, capnproto
-            , pkg-config, openssl, nrf5-sdk, darwin }:
+            , wasm-bindgen-cli, rust-cbindgen, elf2uf2-rs, libusb1
+            , capnproto-rust, capnproto, pkg-config, openssl, nrf5-sdk, darwin
+            }:
             mkShell {
               nativeBuildInputs = [
                 (fenixToolchain fenix)
@@ -346,6 +382,7 @@
 
                 yarn
                 wasm-bindgen-cli
+                rust-cbindgen
               ] ++ lib.optional stdenv.isLinux gdb
                 ++ lib.optionals stdenv.isLinux [ pkg-config openssl ]
                 ++ lib.optionals stdenv.isDarwin [

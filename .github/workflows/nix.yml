@@ -31,33 +31,33 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: firmware
-          path: result/share/sysbadge/
+          path: result/bin/
           retention-days: 5
-  build-images:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v20
-      - uses: cachix/cachix-action@v12
-        with:
-          name: sysbadge
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-      - run: nix build -L .#sysbadge_images
-      - uses: actions/upload-artifact@v3
-        with:
-          name: images
-          path: result/
-          retention-days: 5
-  build-tui:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v20
-      - uses: cachix/cachix-action@v12
-        with:
-          name: sysbadge
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-      - run: nix build -L .#sysbadge_tui
+  # build-images:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: cachix/install-nix-action@v20
+  #     - uses: cachix/cachix-action@v12
+  #       with:
+  #         name: sysbadge
+  #         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+  #     - run: nix build -L .#sysbadge_images
+  #     - uses: actions/upload-artifact@v3
+  #       with:
+  #         name: images
+  #         path: result/
+  #         retention-days: 5
+  # build-tui:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: cachix/install-nix-action@v20
+  #     - uses: cachix/cachix-action@v12
+  #       with:
+  #         name: sysbadge
+  #         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+  #     - run: nix build -L .#sysbadge_tui
   build-cli:
     runs-on: ubuntu-latest
     steps:
@@ -68,4 +68,14 @@ jobs:
           name: sysbadge
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - run: nix build -L .#sysbadge_cli
+  build-lib:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v20
+      - uses: cachix/cachix-action@v12
+        with:
+          name: sysbadge
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - run: nix build -L .#sysbadge
 

@@ -88,7 +88,7 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
 
 fn download_uf2(system: &System) {
     let offset = RP2040_ROM_ADDR + RP2040_DATA_ADDR;
-    let vec = system.get_system().get_uf2(offset);
+    let vec = system.get_system().get_file();
 
     let download_name = format!("{}.uf2", system.system.name);
 

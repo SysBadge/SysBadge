@@ -12,11 +12,11 @@ crate-type = ["cdylib"]
 
 [features]
 default = [ "badge", "update" ]
-update = [ "reqwest", "pkrs", "wasm-bindgen-futures", "sysbadge/downloader", "sysbadge/uf2", "wasm-bindgen/serde-serialize", "web-sys/HtmlInputElement", "web-sys/HtmlButtonElement", "web-sys/Blob", "web-sys/Url", "web-sys/BlobPropertyBag" ]
+update = [ "reqwest", "pkrs", "wasm-bindgen-futures", "sysbadge/downloader", "wasm-bindgen/serde-serialize", "web-sys/HtmlInputElement", "web-sys/HtmlButtonElement", "web-sys/Blob", "web-sys/Url", "web-sys/BlobPropertyBag" ]
 badge = [ "embedded-graphics", "embedded-graphics-web-simulator", "web-sys/HtmlCanvasElement", "web-sys/CanvasRenderingContext2d" ]
 
 [dependencies]
-sysbadge = { path = "..", features = [ "simulator", "wasm", "alloc" ] }
+sysbadge = { path = "..", features = [ "simulator", "wasm", "alloc", "file" ] }
 
 wasm-bindgen = "=0.2.87"
 wee_alloc = "0.4.5"

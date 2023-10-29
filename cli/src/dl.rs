@@ -19,7 +19,7 @@ pub fn command() -> clap::Command {
             clap::Arg::new("format")
                 .long("format")
                 .short('f')
-                .default_value("json")
+                .default_value("sysdf")
                 .value_parser(clap::builder::EnumValueParser::<DlFormat>::new()),
         )
         .arg(
@@ -55,6 +55,7 @@ pub fn dl_common_args(command: clap::Command) -> clap::Command {
 pub enum DlFormat {
     Bin,
     Json,
+    Sysdf,
 }
 
 impl Display for DlFormat {
@@ -62,6 +63,7 @@ impl Display for DlFormat {
         match self {
             Self::Bin => write!(f, "bin"),
             Self::Json => write!(f, "json"),
+            Self::Sysdf => write!(f, "sysdf"),
         }
     }
 }
@@ -80,6 +82,7 @@ pub async fn run(matches: &clap::ArgMatches) -> Result<()> {
 
     let data = match format {
         DlFormat::Bin => system.get_bin(),
+        DlFormat::Sysdf => system.get_file(),
         DlFormat::Json => serde_json::ser::to_vec_pretty(&system).unwrap(),
     };
 

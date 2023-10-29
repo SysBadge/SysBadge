@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::string::{String, ToString};
 
 use crate::system::Member;
 use crate::usb::SystemId;
@@ -37,20 +37,14 @@ impl SystemVec {
 }
 
 impl SystemVec {
-    #[cfg(any(feature = "uf2", doc))]
-    pub fn get_uf2(&self, offset: u32) -> alloc::vec::Vec<u8> {
-        let buf = self.get_bin();
-        Self::bin_to_uf2(&buf, offset)
-    }
-
-    #[cfg(any(feature = "uf2", doc))]
-    pub fn bin_to_uf2(bin: &[u8], offset: u32) -> alloc::vec::Vec<u8> {
-        uf2::bin_to_uf2(bin, uf2::RP2040_FAMILY_ID, offset)
-    }
-
     pub fn get_bin(&self) -> alloc::vec::Vec<u8> {
         let builder = self.capnp_builder();
         capnp::serialize::write_message_to_words(&builder)
+    }
+
+    #[cfg(feature = "file")]
+    pub fn get_file(&self) -> alloc::vec::Vec<u8> {
+        super::file::FileWriter::new(&self).to_vec()
     }
 
     fn capnp_builder(&self) -> capnp::message::Builder<capnp::message::HeapAllocator> {
@@ -60,10 +54,10 @@ impl SystemVec {
             system.set_name(self.name.as_str().into());
             match &self.source_id {
                 SystemId::None => {},
-                SystemId::PluralKit(id) => {
+                SystemId::PluralKit { id } => {
                     system.set_pk_hid(id.as_str().into());
                 },
-                SystemId::PronounsCC(id) => {
+                SystemId::PronounsCC { id } => {
                     system.set_pronouns(id.as_str().into());
                 },
             }
@@ -76,6 +70,24 @@ impl SystemVec {
             }
         }
         builder
+    }
+
+    pub fn from_capnp_bytes(mut slice: &[u8]) -> capnp::Result<Self> {
+        let reader = super::SystemReader::from_byte_slice(&mut slice)?;
+        let mut ret = Self::new(reader.name().to_string());
+        // TODO: source id
+
+        let count = reader.member_count();
+        ret.members.reserve_exact(count);
+        for i in 0..count {
+            let member = reader.member(i);
+            ret.members.push(MemberStrings {
+                name: member.name().to_string(),
+                pronouns: member.pronouns().to_string(),
+            });
+        }
+
+        Ok(ret)
     }
 }
 
@@ -107,59 +119,5 @@ impl Member for MemberStrings {
 
     fn pronouns(&self) -> &str {
         &self.pronouns
-    }
-}
-
-#[cfg(feature = "uf2")]
-mod uf2 {
-    use alloc::vec::Vec;
-
-    /// copied and modified from the uf2 crate
-
-    const UF2_MAGIC_START0: u32 = 0x0A324655; // "UF2\n"
-    const UF2_MAGIC_START1: u32 = 0x9E5D5157; // Randomly selected
-    const UF2_MAGIC_END: u32 = 0x0AB16F30; // Ditto
-
-    pub const RP2040_FAMILY_ID: u32 = 0xe48bff56;
-
-    pub fn bin_to_uf2(bytes: &[u8], family_id: u32, app_start_addr: u32) -> Vec<u8> {
-        let datapadding = 512 - 256 - 32 - 4;
-        let nblocks: u32 = ((bytes.len() + 255) / 256) as u32;
-        let mut outp: Vec<u8> = Vec::new();
-        for blockno in 0..nblocks {
-            let ptr = 256 * blockno;
-            let chunk = match bytes.get(ptr as usize..ptr as usize + 256) {
-                Some(bytes) => bytes.to_vec(),
-                None => {
-                    let mut chunk = bytes[ptr as usize..bytes.len()].to_vec();
-                    while chunk.len() < 256 {
-                        chunk.push(0);
-                    }
-                    chunk
-                },
-            };
-            let mut flags: u32 = 0;
-            if family_id != 0 {
-                flags |= 0x2000
-            }
-
-            // header
-            outp.extend(UF2_MAGIC_START0.to_le_bytes());
-            outp.extend(UF2_MAGIC_START1.to_le_bytes());
-            outp.extend(flags.to_le_bytes());
-            outp.extend((ptr + app_start_addr).to_le_bytes());
-            outp.extend(256u32.to_le_bytes());
-            outp.extend(blockno.to_le_bytes());
-            outp.extend(nblocks.to_le_bytes());
-            outp.extend(family_id.to_le_bytes());
-
-            // data
-            outp.extend(chunk);
-            outp.extend(core::iter::repeat(0).take(datapadding));
-
-            // foote
-            outp.extend(UF2_MAGIC_END.to_le_bytes());
-        }
-        outp
     }
 }

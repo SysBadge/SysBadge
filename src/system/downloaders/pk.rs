@@ -24,7 +24,7 @@ impl PkDownloader {
         let members = self.client.get_system_members(&id).await?;
 
         let mut system = SystemVec::new(info.name.unwrap_or("no system name".to_string()));
-        system.source_id = SystemId::PluralKit(id.to_string());
+        system.source_id = SystemId::PluralKit { id: id.to_string() };
         for member in members {
             system.members.push(MemberStrings {
                 name: transform_name(&member.display_name.unwrap_or_else(|| member.name)),

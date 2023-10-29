@@ -5,9 +5,14 @@ edition = "2021"
 license = "gpl3"
 authors = [ "Finn Behrens <me@kloenk.dev>" ]
 
+[lib]
+name = "sysbadge"
+# crate-type = [ "lib", "cdylib", "staticlib" ]
+
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = [ "uf2" ]
+default = [ ]
 simulator = [ ]
 invert = [ ]
 downloaders = [ "alloc" ]
@@ -16,12 +21,13 @@ downloader-pk = [ "downloaders", "dep:pkrs", "dep:reqwest" ]
 downloader-pronouns = [ "downloaders", "serde", "dep:reqwest" ]
 wasm = [ "dep:wasm-bindgen" ]
 defmt = [ "dep:defmt" ]
-uf2 = [ ]
-alloc = [ "defmt?/alloc", "capnp/alloc" ]
+file = [ "alloc", "dep:bitflags", "dep:sha2", "serde", "dep:serde_json" ]
+alloc = [ "defmt?/alloc", "capnp/alloc", "serde_json?/alloc" ]
 clap = [ "dep:clap" ]
 serde = [ "dep:serde", "int-enum/serde" ]
-std = [ "alloc", "int-enum/std" ]
+std = [ "alloc", "int-enum/std", "sha2?/std", "serde_json?/std" ]
 tracing = [ "dep:tracing" ]
+tokio = [ "dep:tokio" ]
 
 [dependencies]
 defmt = { version = "0.3", features = [ ], optional = true }
@@ -41,14 +47,19 @@ profont = "0.7.0"
 
 # updater
 pkrs = { version = "0.3", optional = true }
-reqwest = { version = "0.11", optional = true }
+reqwest = { version = "0.11", optional = true, default-features = false, features = [ "rustls-tls" ] }
 clap = { version = "4", optional = true }
+tokio = { version = "1.33", optional = true, features = [ "rt" ] }
 
 serde = { version = "1.0", features = [ "derive" ],  optional = true }
+serde_json = { version = "1", default-features = false, optional = true }
 
 wasm-bindgen = { version = "=0.2.87", optional = true }
 
 capnp = { version = "0.18", default-features = false, features= [ ] }
+
+bitflags = { version = "2.4", optional = true }
+sha2 = { version = "0.10", default-features = false, optional = true }
 [build-dependencies]
 capnpc = "0.18"
 
@@ -79,6 +90,16 @@ incremental = false
 lto = 'fat'
 opt-level = 3
 overflow-checks = false
+
+[profile.library]
+codegen-units = 1
+debug = 2
+debug-assertions = false
+incremental = false
+lto = "none"
+opt-level = 3
+overflow-checks = false
+inherits = "release"
 
 # do not optimize proc-macro crates = faster builds from scratch
 [profile.dev.build-override]
@@ -117,7 +138,7 @@ opt-level = 3
 embedded-graphics-web-simulator = { git = "https://github.com/georgik/embedded-graphics-web-simulator.git", rev = "6faa2cc69fcbb2b9b17ae1f765107a499dd4f8b8" }
 
 # Embassy
-embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
+# embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
 embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }
 
 embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "debda2f52c320904755d89ef9c19fa6e54734fe8" }

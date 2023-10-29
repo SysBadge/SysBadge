@@ -16,6 +16,8 @@ use wasm_bindgen::prelude::wasm_bindgen;
 pub mod system;
 pub mod usb;
 
+pub mod binding;
+
 pub mod badge;
 
 pub type DrawResult<D, T = ()> = Result<T, <D as embedded_graphics::prelude::DrawTarget>::Error>;
