@@ -37,7 +37,7 @@ public struct System: Codable {
 }
 
 extension System {
-    public struct Member: Codable {
+    public struct Member: Codable, Hashable {
         public var name: String
         public var pronouns: String
         
@@ -45,5 +45,11 @@ extension System {
             self.name = name
             self.pronouns = pronouns
         }
+    }
+}
+
+extension System.Member: CustomStringConvertible {
+    public var description: String {
+        "\(self.name) (\(self.pronouns))"
     }
 }
