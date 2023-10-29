@@ -19,14 +19,16 @@ import sysbadge_ffi
 
 public class SystemFile {
     var sb_file: OpaquePointer? // sb_file
+    var initialized: Bool = false
     
     public init(file: String) throws {
         let err = file.withCString { file in
             sysbadge_ffi.sb_file_open(file, &self.sb_file)
         }
-        if err != 0 {
+        if err < 0 {
             throw ErrorFFI(err_code: err)
         }
+        self.initialized = true
     }
     
     public init(from bytes: [UInt8]) throws {
@@ -36,6 +38,7 @@ public class SystemFile {
         if err < 0 {
             throw ErrorFFI(err_code: err)
         }
+        self.initialized = true
     }
     
     #if canImport(Foundation)
@@ -46,6 +49,7 @@ public class SystemFile {
         if err < 0 {
             throw ErrorFFI(err_code: err)
         }
+        self.initialized = true
     }
     #endif
    
@@ -66,6 +70,8 @@ public class SystemFile {
     }
     
     deinit {
-        sysbadge_ffi.sb_file_free(self.sb_file)
+        if self.initialized {
+            sysbadge_ffi.sb_file_free(self.sb_file)
+        }
     }
 }

@@ -168,5 +168,5 @@ pub unsafe extern "C" fn sb_system_free(system: *mut SystemVec) {
 pub unsafe extern "C" fn sb_system_member_free(member: *mut CMember) {
     let _ = unsafe { alloc::ffi::CString::from_raw((*member).name as *mut _) };
     let _ = unsafe { alloc::ffi::CString::from_raw((*member).pronouns as *mut _) };
-    unsafe { std::ptr::drop_in_place(member) };
+    // unsafe { std::ptr::drop_in_place(member) };
 }

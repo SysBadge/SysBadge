@@ -91,6 +91,16 @@ lto = 'fat'
 opt-level = 3
 overflow-checks = false
 
+[profile.library]
+codegen-units = 1
+debug = 2
+debug-assertions = false
+incremental = false
+lto = "none"
+opt-level = 3
+overflow-checks = false
+inherits = "release"
+
 # do not optimize proc-macro crates = faster builds from scratch
 [profile.dev.build-override]
 codegen-units = 8

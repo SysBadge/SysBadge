@@ -31,7 +31,8 @@ let package = Package(
             // swiftSettings: [.unsafeFlags(["-L", "../../target/debug"])]),
         .testTarget(
             name: "SysBadgeFFITests",
-            dependencies: ["SysBadgeFFI"]),
+            dependencies: ["SysBadgeFFI"],
+            resources: [.copy("exmpl.sysdf")]),
     ],
     swiftLanguageVersions: [.v5]
 )

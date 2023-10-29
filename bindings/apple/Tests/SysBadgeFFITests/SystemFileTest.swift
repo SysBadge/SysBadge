@@ -7,8 +7,9 @@
 
 import XCTest
 @testable import SysBadgeFFI
+import Foundation
 
-let file = "../../tests/exmpl.sysdf"
+let file = Bundle.module.path(forResource: "exmpl", ofType: "sysdf")!
 
 final class SystemFileTest: XCTestCase {
     func test_file_open() throws {

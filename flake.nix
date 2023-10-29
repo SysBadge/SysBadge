@@ -47,6 +47,7 @@
           capnp = lib.any (suffix: lib.hasSuffix suffix baseName) [
             ".capnp"
             ".sysdf"
+            ".toml"
           ];
           web =
             lib.any (suffix: lib.hasSuffix suffix baseName) [ ".html" ".css" ];
@@ -118,8 +119,8 @@
             });
         in {
           sysbadge = final.callPackage ({ lib, stdenv, fenix, capnproto
-            , libiconv, rust-bindgen, system ? stdenv.targetPlatform.system
-            , darwin ? null }:
+            , libiconv, rust-cbindgen, system ? stdenv.targetPlatform.system
+            , darwin ? null, fixDarwinDylibNames }:
             let
               toolchain = (fenixToolchain fenix);
               craneLib = crane.lib.${system}.overrideToolchain toolchain;
@@ -129,17 +130,24 @@
             }) // {
               cargoArtifacts = cargoArtifacts craneLib toolchain;
               cargoBuildCommand =
-                "cargo rustc --profile release --crate-type=cdylib,staticlib";
+                "cargo rustc --profile library --crate-type=cdylib --crate-type=staticlib";
               pname = "sysbadge";
-              nativeBuildInputs = [ capnproto ];
+              nativeBuildInputs = [ capnproto rust-cbindgen ];
               buildInputs = lib.optionals stdenv.isDarwin [
                 libiconv
                 darwin.apple_sdk.frameworks.SystemConfiguration
+                fixDarwinDylibNames
               ];
               cargoExtraArgs =
                 "-Z build-std=compiler_builtins,core,alloc,std --target ${
                   rustTarget system
-                } --package sysbadge --all-features";
+                } --package sysbadge --features=std,tracing,tokio,downloader,file,serde";
+
+              outputs = [ "out" "dev" ];
+              postInstall = ''
+                mkdir -p $dev/include/
+                cbindgen --config cbindgen.toml --crate sysbadge --output $dev/include/sysbadge.h
+              '';
             })) { };
           sysbadge_simulator = final.callPackage
             ({ lib, stdenv, fenix, SDL2, capnproto, libiconv }:
