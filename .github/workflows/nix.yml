@@ -31,7 +31,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: firmware
-          path: result/share/sysbadge/
+          path: result/bin/
           retention-days: 5
   # build-images:
   #   runs-on: ubuntu-latest
