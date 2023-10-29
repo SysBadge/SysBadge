@@ -24,7 +24,16 @@ public struct System: Codable {
             self.members.append(try system_ffi.member(Int(i)))
         }
     }
-    
+  
+    @inlinable
+    public mutating func append_member(_ member: Member) {
+        self.members.append(member)
+    }
+
+    @inlinable
+    public mutating func append_member(name: String, pronouns: String = "") {
+        self.append_member(Member(name: name, pronouns: pronouns))
+    }
 }
 
 extension System {

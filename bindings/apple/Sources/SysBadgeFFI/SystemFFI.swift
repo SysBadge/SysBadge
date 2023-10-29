@@ -78,14 +78,16 @@ public class SystemFFI {
     
     /// Add member to the system.
     public func push_member(_ member: Member) {
-        var cmember: sysbadge_ffi.sb_system_member = sysbadge_ffi.sb_system_member()
-        member.name.withCString { name in
-            cmember.name = name
+        self.push_member(name: member.name, pronouns: member.pronouns)
+    }
+    
+    public func push_member(name: String, pronouns: String = "") {
+        name.withCString { name in
+            pronouns.withCString { pronouns in
+                var member = sysbadge_ffi.sb_system_member(name: name, pronouns: pronouns)
+                sysbadge_ffi.sb_system_push_member(self.sb_system, &member)
+            }
         }
-        member.pronouns.withCString { pronouns in
-            cmember.pronouns = pronouns
-        }
-        sysbadge_ffi.sb_system_push_member(self.sb_system, &cmember)
     }
     
     /// Sort system mebers.
