@@ -158,12 +158,15 @@ impl System {
 
     #[cfg(feature = "badge")]
     fn set_system(&self) {
+        use embedded_graphics::Drawable;
+
         unsafe {
             let badge = crate::badge::SYSBADGE.as_mut().unwrap();
+            let display = crate::badge::DISPLAY.as_mut().unwrap();
             badge.system = Some(self.get_system().clone());
             badge.reset();
-            badge.draw().unwrap();
-            badge.display.flush().unwrap();
+            badge.draw(display).unwrap();
+            display.flush().unwrap();
         }
     }
 }

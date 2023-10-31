@@ -220,16 +220,14 @@ impl embedded_graphics_core::draw_target::DrawTarget for DummyDrawTarget {
         Ok(())
     }
 }
-type SysBadgeDrawTarget = DummyDrawTarget;
 pub type SysBadge = sysbadge::badge::Sysbadge<
-    SysBadgeDrawTarget,
     SystemReader<sysbadge::system::capnp::serialize::NoAllocSliceSegments<'static>>,
 >;
 
 /// Create a new badge instance.
 fn init_badge() -> &'static Mutex<NoopRawMutex, SysBadge> {
     let system = unsafe { sysbadge::system::SystemReader::from_linker_symbols() }.ok();
-    let sysbadge = Sysbadge::new(DummyDrawTarget, system);
+    let sysbadge = Sysbadge::new(system);
     info!("Opend system: {:?}", sysbadge.system.is_some());
 
     #[cfg(debug_assertions)]
