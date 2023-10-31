@@ -1,12 +1,13 @@
 use embedded_graphics::pixelcolor::BinaryColor;
+use embedded_graphics::Drawable;
 use embedded_graphics_web_simulator::display::WebSimulatorDisplay;
 use sysbadge::badge::Sysbadge;
 use sysbadge::system::SystemVec;
 use wasm_bindgen::prelude::*;
 use web_sys::{console, Document};
 
-pub(crate) static mut SYSBADGE: Option<Sysbadge<WebSimulatorDisplay<BinaryColor>, SystemVec>> =
-    None;
+pub(crate) static mut SYSBADGE: Option<Sysbadge<SystemVec>> = None;
+pub(crate) static mut DISPLAY: Option<WebSimulatorDisplay<BinaryColor>> = None;
 
 pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
     if let Some(app) = document.get_element_by_id("sysbadge-badge") {
@@ -17,7 +18,7 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
                 .scale(1)
                 .pixel_spacing(1)
                 .build();
-        let display: WebSimulatorDisplay<BinaryColor> = WebSimulatorDisplay::new(
+        let mut display: WebSimulatorDisplay<BinaryColor> = WebSimulatorDisplay::new(
             (sysbadge::WIDTH, sysbadge::HEIGHT),
             &output_settings,
             document
@@ -26,11 +27,10 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
         );
 
         let system = create_system();
-        let mut sysbadge = Sysbadge::new(display, Some(system));
+        let mut sysbadge = Sysbadge::new(Some(system));
 
-        sysbadge.draw().unwrap();
-
-        sysbadge.display.flush().unwrap();
+        sysbadge.draw(&mut display).unwrap();
+        display.flush().unwrap();
 
         add_button_event_listener("_sysbadge-badge-button-a", &document, sysbadge::Button::A);
         add_button_event_listener("_sysbadge-badge-button-b", &document, sysbadge::Button::B);
@@ -45,9 +45,10 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
         {
             let closure = Closure::wrap(Box::new(move || unsafe {
                 let badge = SYSBADGE.as_mut().unwrap();
+                let display = DISPLAY.as_mut().unwrap();
                 badge.reset();
-                badge.draw().unwrap();
-                badge.display.flush().unwrap();
+                badge.draw(display).unwrap();
+                display.flush().unwrap();
             }) as Box<dyn FnMut()>);
 
             document
@@ -61,6 +62,7 @@ pub(crate) fn register(document: &Document) -> Result<(), JsValue> {
 
         unsafe {
             SYSBADGE = Some(sysbadge);
+            DISPLAY = Some(display);
         }
     }
 
@@ -85,9 +87,10 @@ fn add_button_event_listener(id: &str, document: &Document, button: sysbadge::Bu
 pub fn press_button(button: sysbadge::Button) {
     console::log_1(&"Pressed button".into());
     let sysbadge = unsafe { SYSBADGE.as_mut().expect("SYSBADGE is None") };
+    let display = unsafe { DISPLAY.as_mut().unwrap() };
     sysbadge.press(button);
-    sysbadge.draw().unwrap();
-    sysbadge.display.flush().unwrap();
+    sysbadge.draw(display).unwrap();
+    display.flush().unwrap();
 }
 
 fn create_system() -> SystemVec {
