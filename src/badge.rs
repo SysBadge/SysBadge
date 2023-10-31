@@ -275,33 +275,21 @@ impl CurrentMenu {
         unsafe { ptr::read(ptr) }
     }
 }
-pub struct Sysbadge<D, S>
-where
-    D: DrawTarget,
-    <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
-    S: System,
-{
-    pub display: D,
+pub struct Sysbadge<S: System> {
     pub system: Option<S>,
     pub serial: Option<&'static str>,
     current: CurrentMenu,
     hash: u16,
 }
 
-impl<D, S> Sysbadge<D, S>
-where
-    D: DrawTarget,
-    <D as DrawTarget>::Color: From<BinaryColor> + PixelColor,
-    S: System,
-{
-    pub fn new(display: D, system: Option<S>) -> Self {
+impl<S: System> Sysbadge<S> {
+    pub fn new(system: Option<S>) -> Self {
         let current = match &system {
             Some(_) => CurrentMenu::SystemName,
             None => CurrentMenu::InvalidSystem,
         };
 
         Self {
-            display,
             system,
             serial: None,
             current,
@@ -323,25 +311,31 @@ where
         );
     }
 
-    pub fn draw(&mut self) -> DrawResult<D, bool> {
+    pub fn maybe_draw<D: DrawTarget<Color = <Self as Drawable>::Color>>(
+        &mut self,
+        target: &mut D,
+    ) -> DrawResult<D, bool> {
         let hash = self.hash();
         if self.hash == hash {
             return Ok(false);
         }
 
-        self.force_draw()?;
+        self.force_draw(target)?;
         self.hash = hash;
         Ok(true)
     }
 
-    pub fn force_draw(&mut self) -> DrawResult<D> {
-        self.display.clear(BINARY_COLOR_OFF.into())?;
+    pub fn force_draw<D: DrawTarget<Color = <Self as Drawable>::Color>>(
+        &self,
+        target: &mut D,
+    ) -> DrawResult<D> {
+        target.clear(BINARY_COLOR_OFF.into())?;
         match self.current {
-            CurrentMenu::InvalidSystem => self.draw_invalid_system(),
-            CurrentMenu::SystemName => self.draw_system_name(),
-            CurrentMenu::Version => self.draw_version(),
+            CurrentMenu::InvalidSystem => self.draw_invalid_system(target),
+            CurrentMenu::SystemName => self.draw_system_name(target),
+            CurrentMenu::Version => self.draw_version(target),
             CurrentMenu::Member(ref cur) => {
-                cur.draw(self.system.as_ref().expect("No system"), &mut self.display)
+                cur.draw(self.system.as_ref().expect("No system"), target)
             },
             CurrentMenu::Updating => todo!("draw updating"),
         }
@@ -377,22 +371,28 @@ where
         crc.get()
     }
 
-    fn draw_system_name(&mut self) -> DrawResult<D> {
+    fn draw_system_name<D: DrawTarget<Color = <Self as Drawable>::Color>>(
+        &self,
+        target: &mut D,
+    ) -> DrawResult<D> {
         Text::with_alignment(
             self.system.as_ref().expect("No system").name().as_ref(),
-            self.display.bounding_box().center(),
+            target.bounding_box().center(),
             MonoTextStyle::new(
                 &embedded_graphics::mono_font::ascii::FONT_10X20,
                 BINARY_COLOR_ON.into(),
             ),
             Alignment::Center,
         )
-        .draw(&mut self.display)?;
+        .draw(target)?;
 
         Ok(())
     }
 
-    fn draw_version(&mut self) -> DrawResult<D> {
+    fn draw_version<D: DrawTarget<Color = <Self as Drawable>::Color>>(
+        &self,
+        target: &mut D,
+    ) -> DrawResult<D> {
         let text_style = MonoTextStyle::new(
             &embedded_graphics::mono_font::ascii::FONT_10X20,
             BINARY_COLOR_ON.into(),
@@ -400,13 +400,13 @@ where
 
         Text::with_alignment(
             "Sysbadge",
-            self.display.bounding_box().center().x_axis() + Point::new(0, 20),
+            target.bounding_box().center().x_axis() + Point::new(0, 20),
             text_style,
             Alignment::Center,
         )
-        .draw(&mut self.display)?;
+        .draw(target)?;
 
-        self.draw_version_and_serial(Point::new(5, 60))?;
+        self.draw_version_and_serial(target, Point::new(5, 60))?;
 
         let text_style = MonoTextStyle::new(
             &embedded_graphics::mono_font::ascii::FONT_9X18,
@@ -422,33 +422,37 @@ where
             text_style,
             Alignment::Left,
         )
-        .draw(&mut self.display)?;
+        .draw(target)?;
         Text::with_alignment(
             concat!("web: ", env!("SYSBADGE_WEB", "missing web configuration")),
             Point::new(5, 120),
             text_style,
             Alignment::Left,
         )
-        .draw(&mut self.display)?;
+        .draw(target)?;
 
         Ok(())
     }
 
-    fn draw_version_and_serial(&mut self, start: Point) -> DrawResult<D> {
+    fn draw_version_and_serial<D: DrawTarget<Color = <Self as Drawable>::Color>>(
+        &self,
+        target: &mut D,
+        start: Point,
+    ) -> DrawResult<D> {
         let text_style = MonoTextStyle::new(
             &embedded_graphics::mono_font::ascii::FONT_10X20,
             BINARY_COLOR_ON.into(),
         );
 
-        let point = Text::with_alignment("Version: ", start, text_style, Alignment::Left)
-            .draw(&mut self.display)?;
+        let point =
+            Text::with_alignment("Version: ", start, text_style, Alignment::Left).draw(target)?;
         Text::with_alignment(
             env!("CARGO_PKG_VERSION"),
             point,
             text_style,
             Alignment::Left,
         )
-        .draw(&mut self.display)?;
+        .draw(target)?;
 
         let text_style = MonoTextStyle::new(
             &embedded_graphics::mono_font::ascii::FONT_9X18,
@@ -462,15 +466,17 @@ where
                 text_style,
                 Alignment::Left,
             )
-            .draw(&mut self.display)?;
-            Text::with_alignment(serial, point, text_style, Alignment::Left)
-                .draw(&mut self.display)?;
+            .draw(target)?;
+            Text::with_alignment(serial, point, text_style, Alignment::Left).draw(target)?;
         }
 
         Ok(())
     }
 
-    fn draw_invalid_system(&mut self) -> DrawResult<D> {
+    fn draw_invalid_system<D: DrawTarget<Color = <Self as Drawable>::Color>>(
+        &self,
+        target: &mut D,
+    ) -> DrawResult<D> {
         let text_style = MonoTextStyle::new(
             &embedded_graphics::mono_font::ascii::FONT_10X20,
             BINARY_COLOR_ON.into(),
@@ -478,13 +484,13 @@ where
 
         Text::with_alignment(
             "System Data Invalid",
-            self.display.bounding_box().center().x_axis() + Point::new(0, 40),
+            target.bounding_box().center().x_axis() + Point::new(0, 40),
             text_style,
             Alignment::Center,
         )
-        .draw(&mut self.display)?;
+        .draw(target)?;
 
-        self.draw_version_and_serial(Point::new(5, 75))?;
+        self.draw_version_and_serial(target, Point::new(5, 75))?;
 
         Ok(())
     }
@@ -492,6 +498,18 @@ where
     #[cfg(feature = "simulator")]
     pub fn reset(&mut self) {
         self.current = CurrentMenu::SystemName;
+    }
+}
+
+impl<S: System> Drawable for Sysbadge<S> {
+    type Color = BinaryColor;
+    type Output = ();
+
+    fn draw<D>(&self, target: &mut D) -> Result<Self::Output, D::Error>
+    where
+        D: DrawTarget<Color = Self::Color>,
+    {
+        self.force_draw(target)
     }
 }
 
