@@ -52,13 +52,16 @@ impl SystemVec {
         {
             let mut system = builder.init_root::<super::system_capnp::system::Builder>();
             system.set_name(self.name.as_str().into());
+            let mut sid = system.reborrow().init_id();
             match &self.source_id {
-                SystemId::None => {},
+                SystemId::None => {
+                    sid.set_none(());
+                },
                 SystemId::PluralKit { id } => {
-                    system.set_pk_hid(id.as_str().into());
+                    sid.set_pk_hid(id.as_str().into());
                 },
                 SystemId::PronounsCC { id } => {
-                    system.set_pronouns(id.as_str().into());
+                    sid.set_pronouns(id.as_str().into());
                 },
             }
 
@@ -75,7 +78,17 @@ impl SystemVec {
     pub fn from_capnp_bytes(mut slice: &[u8]) -> capnp::Result<Self> {
         let reader = super::SystemReader::from_byte_slice(&mut slice)?;
         let mut ret = Self::new(reader.name().to_string());
+
         // TODO: source id
+        ret.source_id = match reader.reader()?.get_id().which()? {
+            super::system_capnp::system::id::Which::None(_) => SystemId::None,
+            super::system_capnp::system::id::Which::PkHid(r) => SystemId::PluralKit {
+                id: r?.to_string()?,
+            },
+            super::system_capnp::system::id::Which::Pronouns(r) => SystemId::PronounsCC {
+                id: r?.to_string()?,
+            },
+        };
 
         let count = reader.member_count();
         ret.members.reserve_exact(count);

@@ -4,7 +4,7 @@ struct System @0x8c2507c83833987c {
     name @0 :Text;
     members @1 :List(Member);
 
-    union {
+    id :union {
         none @2 :Void;
         pkHid @3 :Text;
         pronouns @4 :Text;
