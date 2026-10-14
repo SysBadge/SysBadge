@@ -27,7 +27,7 @@ impl PkDownloader {
         system.source_id = Some(crate::system::alloc::SourceId::PluralKit(id.to_string()));
         for member in members {
             system.members.push(MemberStrings {
-                name: transform_name(&member.display_name.unwrap_or_else(|| member.name)),
+                name: transform_name(&member.name),
                 pronouns: transform_name(member.pronouns.as_deref().unwrap_or("")),
             });
         }

@@ -3,7 +3,14 @@ wasm_target := "wasm32-unknown-unknown"
 
 
 build-fw:
-    cargo build --package sysbadge-fw --target {{fw_target}} --release -Z build-std=compiler_builtins,core,alloc
+    # cargo build --package sysbadge-fw --target {{fw_target}} --release -Z build-std=compiler_builtins,core,alloc
+    nix build .#sysbadge_fw
+
+build-system SYSTEM:
+    cargo run -p sysbadge-cli --all-features -- dl {{SYSTEM}}
+
+tui:
+    cargo run -p sysbadge-usb --bin tui --all-features --
 
 run-fw: build-fw
     probe-run --chip RP2040 ./target/{{fw_target}}/release/sysbadge-fw
