@@ -13,7 +13,7 @@ jobs:
           name: sysbadge
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - run: nix build -L .#sysbadge_web
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v7
         with:
           name: web
           path: result/
@@ -28,7 +28,7 @@ jobs:
           name: sysbadge
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - run: nix build -L .#sysbadge_fw
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v7
         with:
           name: firmware
           path: result/share/sysbadge/
@@ -43,7 +43,7 @@ jobs:
           name: sysbadge
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - run: nix build -L .#sysbadge_images
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v7
         with:
           name: images
           path: result/
