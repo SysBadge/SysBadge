@@ -3,6 +3,7 @@ use core::cmp::Ordering;
 use alloc::{
     format,
     string::{String, ToString},
+    vec,
 };
 
 const BASE_URL: &str = "https://pronouns.cc/api/";
@@ -50,9 +51,7 @@ impl super::Downloader for PronounsDownloader {
     async fn get(&self, id: impl AsRef<str>) -> Result<super::SystemVec, reqwest::Error> {
         let user = self.get_user(id.as_ref()).await?;
 
-        let mut system = super::SystemVec::new(transform_name(
-            &user.display_name.unwrap_or_else(|| user.name),
-        ));
+        let mut system = super::SystemVec::new(transform_name(&user.name));
         system.source_id = Some(crate::system::alloc::SourceId::Pronouns(user.sid.clone()));
 
         for member in user.members {
@@ -71,7 +70,7 @@ impl super::Downloader for PronounsDownloader {
             });
 
             system.members.push(MemberStrings {
-                name: transform_name(&member.display_name.unwrap_or_else(|| member.name)),
+                name: transform_name(&member.displayable_name()),
                 pronouns: transform_name(
                     &pronouns
                         .get(0)
@@ -99,8 +98,15 @@ pub struct User {
     pub sid: String,
     pub name: String,
     pub display_name: Option<String>,
+    pub names: Vec<NamePreferences>,
     pub pronouns: Vec<UserPronouns>,
     pub members: Vec<UserMember>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NamePreferences {
+    pub value: String,
+    pub status: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -108,6 +114,7 @@ pub struct UserMember {
     pub sid: String,
     pub name: String,
     pub display_name: Option<String>,
+    pub names: Vec<NamePreferences>,
     pub pronouns: Vec<UserPronouns>,
 }
 
@@ -116,4 +123,73 @@ pub struct UserPronouns {
     pub pronouns: String,
     pub display_text: Option<String>,
     pub status: String,
+}
+
+pub trait Sortable {
+    fn compare(&self, other: &Self) -> Ordering;
+}
+
+impl UserMember {
+    /// Selects the first displayable name (which can be fully rendered i.e. no characters were deleted)
+    /// if all names have been truncated somehow, choose the first non-empty one
+    pub fn displayable_name(&self) -> String {
+        let mut options: Vec<String> = vec![
+            self.display_name.clone().unwrap_or_default(),
+            self.name.clone(),
+        ];
+
+        let mut names = self.names.clone();
+        names.sort_by(Sortable::compare);
+
+        for name in names {
+            options.push(name.value.clone());
+        }
+
+        let options = options
+            .iter()
+            .map(|n| (n.len(), transform_name(n.as_str())))
+            .collect::<Vec<_>>();
+
+        options
+            .iter()
+            .find(|n| n.0 == n.1.len())
+            .map(|n| n.1.clone())
+            .unwrap_or_else(|| {
+                options
+                    .iter()
+                    .find(|n| !n.1.is_empty())
+                    .map(|n| n.1.clone())
+                    .unwrap_or_default()
+            })
+    }
+}
+
+impl Sortable for UserPronouns {
+    fn compare(&self, other: &Self) -> Ordering {
+        if self.status == other.status {
+            return Ordering::Equal;
+        }
+        if self.status == "favourite" {
+            return Ordering::Less;
+        } else if other.status == "favourite" {
+            return Ordering::Greater;
+        } else {
+            return Ordering::Equal;
+        }
+    }
+}
+
+impl Sortable for NamePreferences {
+    fn compare(&self, other: &Self) -> Ordering {
+        if self.status == other.status {
+            return Ordering::Equal;
+        }
+        if self.status == "favourite" {
+            return Ordering::Less;
+        } else if other.status == "favourite" {
+            return Ordering::Greater;
+        } else {
+            return Ordering::Equal;
+        }
+    }
 }
